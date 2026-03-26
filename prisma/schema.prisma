@@ -7,35 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum VaultRole {
-  owner
-  editor
-  member
-}
-
-enum PlantSpeciesSource {
-  seed
-  perenual
-  ai
-}
-
 model User {
-  id               String               @id @default(uuid()) @db.Uuid
-  email            String               @unique
-  name             String?
-  image            String?
-  emailVerified    DateTime?
-  createdAt        DateTime             @default(now()) @map("created_at")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
-  accounts         Account[]
-  sessions         Session[]
-  memberships      VaultMember[]
-  createdInvites   VaultInvite[]        @relation("VaultInviteCreator")
-  acceptedInvites  VaultInvite[]        @relation("VaultInviteAcceptor")
-  reminderEmails   ReminderEmail[]
-  wateringEvents   PlantWateringEvent[]
-  notificationSettings NotificationSetting[]
-  activityLogs     ActivityLog[]
+  id                    String                  @id @default(uuid()) @db.Uuid
+  email                 String                  @unique
+  name                  String?
+  image                 String?
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  emailVerified         DateTime?
+  accounts              Account[]
+  activityLogs          ActivityLog[]
+  calendar_daily_events calendar_daily_events[]
+  notificationSettings  NotificationSetting[]
+  wateringEvents        PlantWateringEvent[]
+  reminderEmails        ReminderEmail[]
+  sessions              Session[]
+  user_usage            user_usage[]
+  acceptedInvites       VaultInvite[]           @relation("VaultInviteAcceptor")
+  createdInvites        VaultInvite[]           @relation("VaultInviteCreator")
+  memberships           VaultMember[]
 
   @@map("users")
 }
@@ -79,15 +69,15 @@ model VerificationToken {
 }
 
 model Vault {
-  id          String           @id @default(uuid()) @db.Uuid
-  name        String
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  memberships VaultMember[]
-  plants      Plant[]
-  invites     VaultInvite[]
+  id                   String                @id @default(uuid()) @db.Uuid
+  name                 String
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  activityLogs         ActivityLog[]
   notificationSettings NotificationSetting[]
-  activityLogs ActivityLog[]
+  plants               Plant[]
+  invites              VaultInvite[]
+  memberships          VaultMember[]
 
   @@map("vaults")
 }
@@ -97,8 +87,8 @@ model VaultMember {
   userId    String    @map("user_id") @db.Uuid
   role      VaultRole @default(member)
   createdAt DateTime  @default(now()) @map("created_at")
-  vault     Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vault     Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
 
   @@id([vaultId, userId])
   @@map("vault_members")
@@ -107,16 +97,17 @@ model VaultMember {
 model PlantSpecies {
   id                     String              @id @default(uuid()) @db.Uuid
   scientificName         String              @unique @map("scientific_name")
-  normalizedLookupKey    String              @unique @map("normalized_lookup_key")
   wateringIntervalDays   Int                 @map("watering_interval_days")
   fertilizerIntervalDays Int?                @map("fertilizer_interval_days")
   lightRequirement       String?             @map("light_requirement")
-  soilType               String?             @map("soil_type")
-  petToxic               Boolean?            @map("pet_toxic")
-  careNotes              String?             @map("care_notes")
   source                 PlantSpeciesSource
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
+  normalizedLookupKey    String              @unique @map("normalized_lookup_key")
+  soilType               String?             @map("soil_type")
+  petToxic               Boolean?            @map("pet_toxic")
+  careNotes              String?             @map("care_notes")
+  defaultImageUrl        String?             @map("default_image_url")
   aliases                PlantSpeciesAlias[]
   plants                 Plant[]
 
@@ -136,37 +127,38 @@ model PlantSpeciesAlias {
 }
 
 model Plant {
-  id                        String               @id @default(uuid()) @db.Uuid
-  vaultId                   String               @map("vault_id") @db.Uuid
-  speciesId                 String               @map("species_id") @db.Uuid
-  nickname                  String
-  imageUrl                  String?              @map("image_url")
-  customWateringIntervalDays Int?                @map("custom_watering_interval_days")
-  lastWateredAt             DateTime?            @map("last_watered_at")
-  nextWateringAt            DateTime             @map("next_watering_at")
-  createdAt                 DateTime             @default(now()) @map("created_at")
-  updatedAt                 DateTime             @updatedAt @map("updated_at")
-  vault                     Vault                @relation(fields: [vaultId], references: [id], onDelete: Cascade)
-  species                   PlantSpecies         @relation(fields: [speciesId], references: [id], onDelete: Restrict)
-  wateringEvents       PlantWateringEvent[]
-  notificationSettings NotificationSetting[]
+  id                         String                @id @default(uuid()) @db.Uuid
+  vaultId                    String                @map("vault_id") @db.Uuid
+  nickname                   String
+  imageUrl                   String?               @map("image_url")
+  lastWateredAt              DateTime?             @map("last_watered_at")
+  nextWateringAt             DateTime              @map("next_watering_at")
+  createdAt                  DateTime              @default(now()) @map("created_at")
+  updatedAt                  DateTime              @updatedAt @map("updated_at")
+  speciesId                  String                @map("species_id") @db.Uuid
+  customWateringIntervalDays Int?                  @map("custom_watering_interval_days")
+  notificationSettings       NotificationSetting[]
+  wateringEvents             PlantWateringEvent[]
+  species                    PlantSpecies          @relation(fields: [speciesId], references: [id])
+  vault                      Vault                 @relation(fields: [vaultId], references: [id], onDelete: Cascade)
 
   @@index([vaultId, nextWateringAt])
   @@map("plants")
 }
 
 model NotificationSetting {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  vaultId      String?  @map("vault_id") @db.Uuid
-  plantId      String?  @map("plant_id") @db.Uuid
-  emailEnabled Boolean  @default(false) @map("email_enabled")
-  pushEnabled  Boolean  @default(false) @map("push_enabled")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vault        Vault?   @relation(fields: [vaultId], references: [id], onDelete: Cascade)
-  plant        Plant?   @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  vaultId          String?  @map("vault_id") @db.Uuid
+  plantId          String?  @map("plant_id") @db.Uuid
+  emailEnabled     Boolean  @default(false) @map("email_enabled")
+  pushEnabled      Boolean  @default(false) @map("push_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  calendar_enabled Boolean  @default(false)
+  plant            Plant?   @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vault            Vault?   @relation(fields: [vaultId], references: [id], onDelete: Cascade)
 
   @@unique([userId, vaultId])
   @@unique([userId, plantId])
@@ -174,13 +166,13 @@ model NotificationSetting {
 }
 
 model PlantWateringEvent {
-  id         String   @id @default(uuid()) @db.Uuid
-  plantId    String   @map("plant_id") @db.Uuid
-  wateredBy  String   @map("watered_by") @db.Uuid
-  wateredAt  DateTime @default(now()) @map("watered_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  plant      Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [wateredBy], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Uuid
+  plantId   String   @map("plant_id") @db.Uuid
+  wateredBy String   @map("watered_by") @db.Uuid
+  wateredAt DateTime @default(now()) @map("watered_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  plant     Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [wateredBy], references: [id], onDelete: Cascade)
 
   @@index([plantId, wateredAt])
   @@map("plant_watering_events")
@@ -188,20 +180,20 @@ model PlantWateringEvent {
 
 model VaultInvite {
   id           String    @id @default(uuid()) @db.Uuid
-  vaultId       String    @map("vault_id") @db.Uuid
-  token         String    @unique
-  code          String?   @unique
-  email         String?
-  createdById   String    @map("created_by_id") @db.Uuid
-  acceptedById  String?   @map("accepted_by_id") @db.Uuid
-  expiresAt     DateTime  @map("expires_at")
-  acceptedAt    DateTime? @map("accepted_at")
-  declinedAt    DateTime? @map("declined_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  vault         Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
-  createdBy     User      @relation("VaultInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  acceptedBy    User?     @relation("VaultInviteAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+  vaultId      String    @map("vault_id") @db.Uuid
+  token        String    @unique
+  email        String?
+  createdById  String    @map("created_by_id") @db.Uuid
+  acceptedById String?   @map("accepted_by_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  code         String?   @unique
+  declinedAt   DateTime? @map("declined_at")
+  acceptedBy   User?     @relation("VaultInviteAcceptor", fields: [acceptedById], references: [id])
+  createdBy    User      @relation("VaultInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  vault        Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
 
   @@index([vaultId, expiresAt])
   @@map("vault_invites")
@@ -215,8 +207,8 @@ model ActivityLog {
   entityType String   @map("entity_type")
   entityId   String   @map("entity_id")
   createdAt  DateTime @default(now()) @map("created_at")
-  vault      Vault    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vault      Vault    @relation(fields: [vaultId], references: [id], onDelete: Cascade)
 
   @@index([vaultId, createdAt])
   @@map("activity_logs")
@@ -232,4 +224,43 @@ model ReminderEmail {
 
   @@unique([userId, reminderDate])
   @@map("reminder_emails")
+}
+
+model calendar_daily_events {
+  id              String   @id @db.Uuid
+  user_id         String   @db.Uuid
+  date            DateTime
+  google_event_id String
+  created_at      DateTime @default(now())
+  updated_at      DateTime
+  users           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, date])
+}
+
+model user_usage {
+  id                         String   @id @db.Uuid
+  user_id                    String   @db.Uuid
+  photo_identifications_used Int      @default(0)
+  period_start               DateTime
+  period_end                 DateTime
+  created_at                 DateTime @default(now())
+  updated_at                 DateTime
+  users                      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, period_start])
+  @@index([user_id, period_end])
+}
+
+enum VaultRole {
+  owner
+  member
+  editor
+}
+
+enum PlantSpeciesSource {
+  seed
+  perenual
+  ai
+  plant_id
 }
