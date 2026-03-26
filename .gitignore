@@ -6,5 +6,5 @@ node_modules
 coverage
 dist
 prisma/dev.db
-public/uploads
+public
 AGENTS.md
