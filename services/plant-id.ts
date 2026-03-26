@@ -9,10 +9,39 @@ type PlantSuggestion = {
   commonNames: string[];
   description: string | null;
   url: string | null;
+  imageUrl: string | null;
 };
 
-const IDENTIFICATION_DETAILS = "common_names,url,description,taxonomy";
-const KB_DETAILS = "common_names,description,url";
+const IDENTIFICATION_DETAILS = "common_names,url,description,taxonomy,wiki_image,scientific_name";
+const KB_DETAILS = "common_names,description,url,wiki_image,scientific_name";
+
+function extractStringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function extractImageUrl(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return (
+    extractStringValue(record.value) ??
+    extractStringValue(record.url) ??
+    (Array.isArray(record.images) ? extractImageUrl(record.images[0]) : null) ??
+    (Array.isArray(record.similar_images) ? extractImageUrl(record.similar_images[0]) : null) ??
+    null
+  );
+}
 
 function extractDescription(details: Record<string, unknown> | undefined) {
   const description = details?.description;
@@ -58,7 +87,17 @@ function mapSuggestion(suggestion: Record<string, unknown>): PlantSuggestion {
       typeof suggestion.access_token === "string" ? suggestion.access_token : null,
     commonNames,
     description: extractDescription(details),
-    url: typeof details?.url === "string" ? details.url : null
+    url:
+      extractStringValue(details?.url) ??
+      extractStringValue(suggestion.url) ??
+      extractStringValue((suggestion as { details?: { url?: string } }).details?.url),
+    imageUrl:
+      extractImageUrl(details?.wiki_image) ??
+      extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+      extractImageUrl((suggestion as { image?: unknown }).image) ??
+      extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+      extractImageUrl((suggestion as { similar_images?: unknown }).similar_images) ??
+      null
   };
 }
 
@@ -129,7 +168,16 @@ async function getPlantDetails(accessToken: string) {
         : typeof payload.description?.value === "string"
           ? payload.description.value
           : null,
-    url: typeof payload.url === "string" ? payload.url : null
+    url: extractStringValue(payload.url),
+    imageUrl:
+      extractImageUrl(payload.wiki_image) ??
+      extractImageUrl(payload.image) ??
+      extractImageUrl(payload.image_url) ??
+      null,
+    scientificName:
+      extractStringValue(payload.scientific_name) ??
+      extractStringValue(payload.name) ??
+      null
   };
 }
 
@@ -171,7 +219,12 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
           accessToken,
           commonNames: [],
           description: null,
-          url: null
+          url: null,
+          imageUrl:
+            extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+            extractImageUrl((suggestion as { image?: unknown }).image) ??
+            extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+            null
         } satisfies PlantSuggestion;
       }
 
@@ -179,11 +232,17 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
         const details = await getPlantDetails(accessToken);
 
         return {
-          species: suggestion.name.trim(),
+          species: details.scientificName ?? suggestion.name.trim(),
           accessToken,
           commonNames: details.commonNames,
           description: details.description,
-          url: details.url
+          url: details.url,
+          imageUrl:
+            details.imageUrl ??
+            extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+            extractImageUrl((suggestion as { image?: unknown }).image) ??
+            extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+            null
         } satisfies PlantSuggestion;
       } catch {
         return {
@@ -191,7 +250,12 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
           accessToken,
           commonNames: [],
           description: null,
-          url: null
+          url: null,
+          imageUrl:
+            extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+            extractImageUrl((suggestion as { image?: unknown }).image) ??
+            extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+            null
         } satisfies PlantSuggestion;
       }
     })

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth-helpers";
 import { toErrorResponse } from "@/lib/http";
 import { plantSearchQuerySchema } from "@/lib/validators";
-import { searchPlantsByName } from "@/services/plant-id";
-import { searchLocalPlantSpecies } from "@/services/plant-care";
+import { suggestPlantSpecies } from "@/services/plant-care";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,17 +10,27 @@ export async function GET(request: NextRequest) {
     const query = plantSearchQuerySchema.parse({
       q: request.nextUrl.searchParams.get("q")
     });
-    const [savedMatches, suggestions] = await Promise.all([
-      searchLocalPlantSpecies(query.q),
-      searchPlantsByName(query.q).catch((error) => {
-        console.error("[plant-search] knowledge_base_failed", {
-          query: query.q,
-          error: error instanceof Error ? error.message : "unknown_error"
-        });
-        return [];
-      })
-    ]);
-    return NextResponse.json({ savedMatches, suggestions });
+    const matches = await suggestPlantSpecies(query.q);
+
+    return NextResponse.json({
+      savedMatches: matches
+        .filter((match) => match.source === "database" || match.source === "alias")
+        .map((match) => ({
+          id: `${match.source}:${match.latinName}`,
+          species: match.latinName,
+          imageUrl: match.imageUrl,
+          aliases: []
+        })),
+      suggestions: matches
+        .filter((match) => match.source === "plant_id" || match.source === "ai")
+        .map((match) => ({
+          species: match.latinName,
+          commonNames: [],
+          description: null,
+          url: null,
+          imageUrl: match.imageUrl
+        }))
+    });
   } catch (error) {
     return toErrorResponse(error);
   }
