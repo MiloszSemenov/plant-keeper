@@ -6,13 +6,18 @@ export const identifyPlantSchema = z.object({
 
 export const addPlantSchema = z.object({
   vaultId: z.string().uuid(),
-  species: z.string().trim().min(2).max(140),
+  speciesId: z.string().uuid(),
   nickname: z.string().trim().max(140).optional().or(z.literal("")),
   image: z.string().optional()
 });
 
 export const plantSearchQuerySchema = z.object({
   q: z.string().trim().min(3).max(120)
+});
+
+export const plantSpeciesConfirmSchema = z.object({
+  latinName: z.string().trim().min(2).max(140),
+  commonName: z.string().trim().max(140).optional().or(z.literal(""))
 });
 
 export const createVaultSchema = z.object({

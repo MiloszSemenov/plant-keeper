@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const plant = await createPlant({
       userId: user.id,
       vaultId: payload.vaultId,
-      species: payload.species,
+      speciesId: payload.speciesId,
       nickname: payload.nickname || undefined,
       image: payload.image
     });

@@ -2,7 +2,6 @@ import { type Prisma } from "@prisma/client";
 import { prisma } from "@/db/client";
 import { ApiError } from "@/lib/http";
 import { addDays, endOfLocalDay, startOfLocalDay } from "@/lib/time";
-import { getOrCreatePlantSpecies } from "@/services/plant-care";
 import { savePlantImage } from "@/services/storage";
 import {
   canManagePlants,
@@ -11,6 +10,22 @@ import {
 } from "@/services/vaults";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const plantSpeciesSelect = {
+  id: true,
+  scientificName: true,
+  normalizedLookupKey: true,
+  defaultImageUrl: true,
+  wateringIntervalDays: true,
+  fertilizerIntervalDays: true,
+  lightRequirement: true,
+  soilType: true,
+  petToxic: true,
+  careNotes: true,
+  source: true,
+  createdAt: true,
+  updatedAt: true
+} as const;
 
 export type DashboardSection = "overdue" | "today" | "upcoming";
 
@@ -34,6 +49,18 @@ function splitDashboardPlants<T extends { nextWateringAt: Date }>(plants: T[], n
     ),
     upcoming: plants.filter((plant) => plant.nextWateringAt > todayEnd)
   };
+}
+
+function getRecentlyWateredPlants<T extends { lastWateredAt: Date | null }>(plants: T[]) {
+  return plants
+    .filter((plant) => plant.lastWateredAt)
+    .sort((left, right) => {
+      const leftValue = left.lastWateredAt?.getTime() ?? 0;
+      const rightValue = right.lastWateredAt?.getTime() ?? 0;
+
+      return rightValue - leftValue;
+    })
+    .slice(0, 5);
 }
 
 function getObservedWateringIntervalDays(events: Array<{ wateredAt: Date }>) {
@@ -72,7 +99,9 @@ export async function getVaultPlants(userId: string, vaultId: string) {
       vaultId
     },
     include: {
-      species: true
+      species: {
+        select: plantSpeciesSelect
+      }
     },
     orderBy: {
       nextWateringAt: "asc"
@@ -103,7 +132,9 @@ async function waterPlantWithRecord(
       nextWateringAt: addDays(wateredAt, wateringIntervalDays)
     },
     include: {
-      species: true,
+      species: {
+        select: plantSpeciesSelect
+      },
       vault: true
     }
   });
@@ -132,21 +163,36 @@ async function waterPlantWithRecord(
 export async function createPlant({
   userId,
   vaultId,
-  species,
+  speciesId,
   nickname,
   image
 }: {
   userId: string;
   vaultId: string;
-  species: string;
+  speciesId: string;
   nickname?: string;
   image?: string;
 }) {
   await ensureVaultEditor(userId, vaultId);
 
-  const speciesRecord = await getOrCreatePlantSpecies(species);
+  const speciesRecord = await prisma.plantSpecies.findUnique({
+    where: {
+      id: speciesId
+    },
+    select: {
+      id: true,
+      scientificName: true,
+      defaultImageUrl: true,
+      wateringIntervalDays: true
+    }
+  });
+
+  if (!speciesRecord) {
+    throw new ApiError(400, "Select a plant species before saving");
+  }
+
   const now = new Date();
-  const imageUrl = image ? await savePlantImage(image) : null;
+  const imageUrl = image ? await savePlantImage(image) : speciesRecord.defaultImageUrl;
   const plantNickname = nickname?.trim() || speciesRecord.scientificName;
 
   return prisma.$transaction(async (tx) => {
@@ -160,7 +206,9 @@ export async function createPlant({
         nextWateringAt: addDays(now, speciesRecord.wateringIntervalDays)
       },
       include: {
-        species: true,
+        species: {
+          select: plantSpeciesSelect
+        },
         vault: true
       }
     });
@@ -188,7 +236,10 @@ export async function getDashboard(
 ) {
   const plants = await getVaultPlants(userId, vaultId);
   const now = options?.now ?? new Date();
-  return splitDashboardPlants(plants, now);
+  return {
+    ...splitDashboardPlants(plants, now),
+    recentlyWatered: getRecentlyWateredPlants(plants)
+  };
 }
 
 export async function getPlantDetail(userId: string, plantId: string) {
@@ -197,7 +248,9 @@ export async function getPlantDetail(userId: string, plantId: string) {
       id: plantId
     },
     include: {
-      species: true,
+      species: {
+        select: plantSpeciesSelect
+      },
       notificationSettings: {
         where: {
           userId
@@ -288,7 +341,9 @@ export async function updatePlant({
       nextWateringAt
     },
     include: {
-      species: true,
+      species: {
+        select: plantSpeciesSelect
+      },
       vault: true
     }
   });
