@@ -3,10 +3,10 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-export function AcceptInviteButton({
+export function DeclineInviteButton({
   token,
   code,
-  label = "Join"
+  label = "Decline"
 }: {
   token?: string;
   code?: string;
@@ -14,19 +14,19 @@ export function AcceptInviteButton({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const errorMessage = token ? "Unable to accept invite" : "Unable to join space";
+  const errorMessage = token ? "Unable to decline invite" : "Unable to decline join request";
 
   return (
     <button
-      className="button button-primary"
+      className="button button-ghost"
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {
           const response = token
-            ? await fetch(`/api/invite/${token}/accept`, {
+            ? await fetch(`/api/invite/${token}/decline`, {
                 method: "POST"
               })
-            : await fetch("/api/join", {
+            : await fetch("/api/join/decline", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json"
@@ -41,13 +41,12 @@ export function AcceptInviteButton({
             return;
           }
 
-          router.push(`/dashboard?vaultId=${payload.vault.id}`);
           router.refresh();
         });
       }}
       type="button"
     >
-      {isPending ? "Joining..." : label}
+      {isPending ? "Declining..." : label}
     </button>
   );
 }

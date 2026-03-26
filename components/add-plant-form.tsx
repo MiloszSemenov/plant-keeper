@@ -25,6 +25,13 @@ type Suggestion = {
   url: string | null;
 };
 
+type SavedMatch = {
+  id: string;
+  species: string;
+  imageUrl: string | null;
+  aliases: string[];
+};
+
 export function AddPlantForm({
   vaults,
   initialVaultId
@@ -39,7 +46,8 @@ export function AddPlantForm({
   const [image, setImage] = useState<string | undefined>();
   const [imageName, setImageName] = useState<string | null>(null);
   const [photoSuggestions, setPhotoSuggestions] = useState<Suggestion[]>([]);
-  const [searchSuggestions, setSearchSuggestions] = useState<Suggestion[]>([]);
+  const [savedMatches, setSavedMatches] = useState<SavedMatch[]>([]);
+  const [knowledgeBaseSuggestions, setKnowledgeBaseSuggestions] = useState<Suggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [identifyPending, startIdentify] = useTransition();
   const [createPending, startCreate] = useTransition();
@@ -50,7 +58,8 @@ export function AddPlantForm({
     const trimmedQuery = species.trim();
 
     if (trimmedQuery.length < 3) {
-      setSearchSuggestions([]);
+      setSavedMatches([]);
+      setKnowledgeBaseSuggestions([]);
       lastSearchQueryRef.current = "";
       return;
     }
@@ -82,7 +91,8 @@ export function AddPlantForm({
         }
 
         lastSearchQueryRef.current = trimmedQuery;
-        setSearchSuggestions(payload.suggestions ?? []);
+        setSavedMatches(payload.savedMatches ?? []);
+        setKnowledgeBaseSuggestions(payload.suggestions ?? []);
       });
     }, 450);
 
@@ -183,8 +193,8 @@ export function AddPlantForm({
         <p className="eyebrow">Add plant</p>
         <h2>Add a plant to your space</h2>
         <p>
-          Drop in a photo for instant suggestions, or type a species name and pick a match from
-          the Plant.id knowledge base.
+          Drop in a photo for instant suggestions, or type a species name to search Plant Keeper
+          first and then the Plant.id knowledge base.
         </p>
       </div>
 
@@ -289,14 +299,47 @@ export function AddPlantForm({
         <small>Type at least 3 characters to search by name.</small>
       </label>
 
-      {searchSuggestions.length > 0 ? (
+      {savedMatches.length > 0 ? (
+        <div className="stack-sm">
+          <div className="inline-actions">
+            <p className="eyebrow">Saved in Plant Keeper</p>
+            {searchPending ? <p className="muted">Searching...</p> : null}
+          </div>
+          <div className="suggestion-grid">
+            {savedMatches.map((match) => (
+              <button
+                className={match.species === species ? "suggestion-card active" : "suggestion-card"}
+                key={match.id}
+                onClick={() => setSpecies(match.species)}
+                type="button"
+              >
+                {match.imageUrl ? (
+                  <span className="suggestion-media">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img alt={match.species} src={match.imageUrl} />
+                  </span>
+                ) : null}
+                <strong>{match.species}</strong>
+                {match.aliases[0] ? <span>{match.aliases[0]}</span> : <span>Saved species</span>}
+                <small>{match.imageUrl ? "Uses an existing plant photo" : "No saved photo yet"}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {species.trim().length >= 3 && !searchPending && savedMatches.length === 0 ? (
+        <p className="muted">No saved matches yet. You can still add the species manually.</p>
+      ) : null}
+
+      {knowledgeBaseSuggestions.length > 0 ? (
         <div className="stack-sm">
           <div className="inline-actions">
             <p className="eyebrow">Knowledge base</p>
             {searchPending ? <p className="muted">Searching...</p> : null}
           </div>
           <div className="suggestion-grid">
-            {searchSuggestions.map((suggestion) => (
+            {knowledgeBaseSuggestions.map((suggestion) => (
               <button
                 className={
                   suggestion.species === species ? "suggestion-card active" : "suggestion-card"
@@ -317,10 +360,6 @@ export function AddPlantForm({
             ))}
           </div>
         </div>
-      ) : null}
-
-      {photoSuggestions.length === 0 && searchSuggestions.length === 0 && species.trim().length >= 3 ? (
-        <p className="muted">No saved matches yet. You can still add the species manually.</p>
       ) : null}
 
       {error ? <p className="field-error">{error}</p> : null}

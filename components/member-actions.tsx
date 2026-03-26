@@ -13,9 +13,12 @@ export function MemberActions({
   initialRole: "editor" | "member";
 }) {
   const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
   const [role, setRole] = useState<"editor" | "member">(initialRole);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const roleLabel = role;
 
   function updateRole() {
     setError(null);
@@ -38,6 +41,7 @@ export function MemberActions({
         return;
       }
 
+      setIsEditing(false);
       router.refresh();
     });
   }
@@ -67,29 +71,48 @@ export function MemberActions({
 
   return (
     <div className="member-actions">
-      <select
-        onChange={(event) => setRole(event.target.value as "editor" | "member")}
-        value={role}
-      >
-        <option value="member">Water only</option>
-        <option value="editor">Can edit plants</option>
-      </select>
-      <button
-        className="button button-secondary"
-        disabled={isPending}
-        onClick={updateRole}
-        type="button"
-      >
-        Save
-      </button>
-      <button
-        className="button button-ghost"
-        disabled={isPending}
-        onClick={removeMember}
-        type="button"
-      >
-        Remove
-      </button>
+      {isEditing ? (
+        <>
+          <select
+            onChange={(event) => setRole(event.target.value as "editor" | "member")}
+            value={role}
+          >
+            <option value="member">Member</option>
+            <option value="editor">Editor</option>
+          </select>
+          <button
+            className="button button-secondary"
+            disabled={isPending}
+            onClick={updateRole}
+            type="button"
+          >
+            OK
+          </button>
+          <button
+            className="button button-danger"
+            disabled={isPending}
+            onClick={removeMember}
+            type="button"
+          >
+            X
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="member-role">{roleLabel}</span>
+          <button
+            className="button button-ghost"
+            disabled={isPending}
+            onClick={() => {
+              setError(null);
+              setIsEditing(true);
+            }}
+            type="button"
+          >
+            Edit
+          </button>
+        </>
+      )}
       {error ? <p className="field-error">{error}</p> : null}
     </div>
   );

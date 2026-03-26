@@ -3,6 +3,7 @@ import { requireApiUser } from "@/lib/auth-helpers";
 import { toErrorResponse } from "@/lib/http";
 import { plantSearchQuerySchema } from "@/lib/validators";
 import { searchPlantsByName } from "@/services/plant-id";
+import { searchLocalPlantSpecies } from "@/services/plant-care";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,8 +11,17 @@ export async function GET(request: NextRequest) {
     const query = plantSearchQuerySchema.parse({
       q: request.nextUrl.searchParams.get("q")
     });
-    const suggestions = await searchPlantsByName(query.q);
-    return NextResponse.json({ suggestions });
+    const [savedMatches, suggestions] = await Promise.all([
+      searchLocalPlantSpecies(query.q),
+      searchPlantsByName(query.q).catch((error) => {
+        console.error("[plant-search] knowledge_base_failed", {
+          query: query.q,
+          error: error instanceof Error ? error.message : "unknown_error"
+        });
+        return [];
+      })
+    ]);
+    return NextResponse.json({ savedMatches, suggestions });
   } catch (error) {
     return toErrorResponse(error);
   }

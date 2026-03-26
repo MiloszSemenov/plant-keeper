@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth-helpers";
-import { canManagePlants, listUserVaults } from "@/services/vaults";
+import { requireUserVault } from "@/lib/auth-helpers";
+import { canManagePlants, getVaultActivity } from "@/services/vaults";
 import { getDashboard } from "@/services/plants";
 import { AppShell } from "@/components/app-shell";
+import { DevModePanel } from "@/components/dev-mode-panel";
+import { MarkWateredButton } from "@/components/mark-watered-button";
+import { getDevModeState } from "@/lib/dev-mode";
 import { PlantCard } from "@/components/plant-card";
 import { EmptyState } from "@/components/empty-state";
-import { CreateVaultForm } from "@/components/create-vault-form";
-import { DevModePanel } from "@/components/dev-mode-panel";
-import { getDevModeState } from "@/lib/dev-mode";
+import { formatTimeAgo } from "@/lib/time";
 
 type DashboardPageProps = {
   searchParams: Promise<{
@@ -18,32 +19,14 @@ type DashboardPageProps = {
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
-  const user = await requireUser();
-  const memberships = await listUserVaults(user.id);
-
-  if (memberships.length === 0) {
-    return (
-      <main className="marketing-shell">
-        <section className="panel">
-          <EmptyState
-            eyebrow="Spaces"
-            title="Start with your first space"
-            description="Create a space to organize plants, schedules, and invites."
-            action={<CreateVaultForm />}
-          />
-        </section>
-      </main>
-    );
-  }
-
   const params = await searchParams;
-  const selectedMembership =
-    memberships.find((membership) => membership.vault.id === params.vaultId) ?? memberships[0];
+  const { user, memberships, selectedMembership } = await requireUserVault(params.vaultId);
   const userCanManagePlants = canManagePlants(selectedMembership.role);
   const devMode = getDevModeState(params);
   const dashboard = await getDashboard(user.id, selectedMembership.vault.id, {
     now: devMode.now
   });
+  const activity = await getVaultActivity(user.id, selectedMembership.vault.id);
   const vaults = memberships.map((membership) => ({
     id: membership.vault.id,
     name: membership.vault.name,
@@ -91,8 +74,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <section className="dashboard-columns">
         <div className="stack-md">
           <div className="section-heading">
-            <p className="eyebrow">Needs attention</p>
-            <h2>Overdue</h2>
+            <div>
+              <p className="eyebrow">Needs attention</p>
+              <h2>Overdue</h2>
+            </div>
+            {dashboard.overdue.length > 0 ? (
+              <MarkWateredButton
+                dashboardAction={{
+                  vaultId: selectedMembership.vault.id,
+                  section: "overdue",
+                  devMode: devMode.enabled,
+                  dayOffset: devMode.dayOffset
+                }}
+                label="Mark all watered"
+              />
+            ) : null}
           </div>
           {dashboard.overdue.length > 0 ? (
             dashboard.overdue.map((plant) => (
@@ -108,8 +104,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <div className="stack-md">
           <div className="section-heading">
-            <p className="eyebrow">Right now</p>
-            <h2>Today</h2>
+            <div>
+              <p className="eyebrow">Right now</p>
+              <h2>Today</h2>
+            </div>
+            {dashboard.today.length > 0 ? (
+              <MarkWateredButton
+                dashboardAction={{
+                  vaultId: selectedMembership.vault.id,
+                  section: "today",
+                  devMode: devMode.enabled,
+                  dayOffset: devMode.dayOffset
+                }}
+                label="Mark all watered"
+              />
+            ) : null}
           </div>
           {dashboard.today.length > 0 ? (
             dashboard.today.map((plant) => (
@@ -125,8 +134,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <div className="stack-md">
           <div className="section-heading">
-            <p className="eyebrow">Coming up</p>
-            <h2>Upcoming</h2>
+            <div>
+              <p className="eyebrow">Coming up</p>
+              <h2>Upcoming</h2>
+            </div>
+            {dashboard.upcoming.length > 0 ? (
+              <MarkWateredButton
+                dashboardAction={{
+                  vaultId: selectedMembership.vault.id,
+                  section: "upcoming",
+                  devMode: devMode.enabled,
+                  dayOffset: devMode.dayOffset
+                }}
+                label="Mark all watered"
+              />
+            ) : null}
           </div>
           {dashboard.upcoming.length > 0 ? (
             dashboard.upcoming.map((plant) => (
@@ -139,6 +161,30 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             />
           )}
         </div>
+      </section>
+
+      <section className="panel stack-sm">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Recent activity</p>
+            <h2>What happened in this space</h2>
+          </div>
+        </div>
+        {activity.length > 0 ? (
+          <div className="stack-xs">
+            {activity.map((entry) => (
+              <div className="history-item" key={entry.id}>
+                <span>{entry.description}</span>
+                <strong>{formatTimeAgo(entry.createdAt)}</strong>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No recent activity yet"
+            description="Add a plant, water one, or invite someone to start the activity feed."
+          />
+        )}
       </section>
     </AppShell>
   );

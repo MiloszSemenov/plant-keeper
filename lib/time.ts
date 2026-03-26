@@ -50,3 +50,28 @@ export function formatDaysAgo(date: Date | string, now = new Date()) {
 
   return `${days} days ago`;
 }
+
+export function formatTimeAgo(date: Date | string, now = new Date()) {
+  const value = typeof date === "string" ? new Date(date) : date;
+  const diffMs = Math.max(0, now.getTime() - value.getTime());
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < hour) {
+    const minutes = Math.max(1, Math.round(diffMs / minute));
+    return `${minutes}m ago`;
+  }
+
+  if (diffMs < day) {
+    const hours = Math.max(1, Math.round(diffMs / hour));
+    return `${hours}h ago`;
+  }
+
+  if (diffMs < 7 * day) {
+    const days = Math.max(1, Math.round(diffMs / day));
+    return `${days}d ago`;
+  }
+
+  return formatDate(value);
+}

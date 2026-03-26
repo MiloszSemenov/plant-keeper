@@ -5,6 +5,10 @@ import { formatDate, formatDaysAgo } from "@/lib/time";
 import { getPlantDetail } from "@/services/plants";
 import { PlantDetailEditor } from "@/components/plant-detail-editor";
 
+function getRoleLabel(role: string) {
+  return role;
+}
+
 type PlantPageProps = {
   params: Promise<{
     id: string;
@@ -37,6 +41,9 @@ export default async function PlantPage({ params }: PlantPageProps) {
           plantId={plant.id}
           scientificName={plant.species.scientificName}
           soilType={plant.species.soilType}
+          recommendedWateringIntervalDays={plant.wateringInsights.recommendedIntervalDays}
+          observedWateringIntervalDays={plant.wateringInsights.observedIntervalDays}
+          observedWateringEventCount={plant.wateringInsights.observedEventCount}
           vaultId={plant.vault.id}
           vaultName={plant.vault.name}
           wateringIntervalDays={wateringIntervalDays}
@@ -71,8 +78,8 @@ export default async function PlantPage({ params }: PlantPageProps) {
               <div className="stack-xs">
                 {plant.wateringEvents.map((event) => (
                   <div className="history-item" key={event.id}>
+                    <span>Watered by {event.user.name ?? event.user.email}</span>
                     <strong>{formatDate(event.wateredAt)}</strong>
-                    <span>Marked by {event.user.name ?? event.user.email}</span>
                   </div>
                 ))}
               </div>
@@ -88,7 +95,7 @@ export default async function PlantPage({ params }: PlantPageProps) {
               {plant.vault.memberships.map((membership) => (
                 <div className="member-row" key={membership.user.id}>
                   <strong>{membership.user.name ?? membership.user.email}</strong>
-                  <span>{membership.role}</span>
+                  <span>{getRoleLabel(membership.role)}</span>
                 </div>
               ))}
             </div>

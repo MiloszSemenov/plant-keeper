@@ -107,17 +107,6 @@ export async function getVaultSettings(userId: string, vaultId: string) {
           createdAt: "asc"
         }
       },
-      invites: {
-        where: {
-          acceptedAt: null
-        },
-        include: {
-          createdBy: true
-        },
-        orderBy: {
-          createdAt: "desc"
-        }
-      },
       notificationSettings: {
         where: {
           userId
@@ -131,6 +120,102 @@ export async function getVaultSettings(userId: string, vaultId: string) {
       }
     }
   });
+}
+
+function getActivityActorName(user: { name: string | null; email: string }) {
+  return user.name ?? user.email;
+}
+
+function getActivityDescription(
+  activity: {
+    actionType: string;
+    user: {
+      name: string | null;
+      email: string;
+    };
+    entityId: string;
+  },
+  plantNameById: Map<string, string>
+) {
+  const actorName = getActivityActorName(activity.user);
+
+  if (activity.actionType === "plant_created") {
+    return `${actorName} added ${plantNameById.get(activity.entityId) ?? "a plant"}`;
+  }
+
+  if (activity.actionType === "plant_watered") {
+    return `${actorName} watered ${plantNameById.get(activity.entityId) ?? "a plant"}`;
+  }
+
+  if (activity.actionType === "invite_created") {
+    return `${actorName} created an invite link`;
+  }
+
+  if (activity.actionType === "invite_accepted") {
+    return `${actorName} accepted an invite`;
+  }
+
+  if (activity.actionType === "member_joined") {
+    return `${actorName} joined the space`;
+  }
+
+  if (activity.actionType === "member_left") {
+    return `${actorName} left the space`;
+  }
+
+  return `${actorName} updated the space`;
+}
+
+export async function getVaultActivity(
+  userId: string,
+  vaultId: string,
+  options?: {
+    take?: number;
+  }
+) {
+  await ensureVaultMembership(userId, vaultId);
+
+  const activities = await prisma.activityLog.findMany({
+    where: {
+      vaultId
+    },
+    include: {
+      user: true
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: options?.take ?? 10
+  });
+
+  const plantIds = Array.from(
+    new Set(
+      activities
+        .filter((activity) => activity.entityType === "plant")
+        .map((activity) => activity.entityId)
+    )
+  );
+  const plants =
+    plantIds.length === 0
+      ? []
+      : await prisma.plant.findMany({
+          where: {
+            id: {
+              in: plantIds
+            }
+          },
+          select: {
+            id: true,
+            nickname: true
+          }
+        });
+  const plantNameById = new Map(plants.map((plant) => [plant.id, plant.nickname]));
+
+  return activities.map((activity) => ({
+    id: activity.id,
+    createdAt: activity.createdAt,
+    description: getActivityDescription(activity, plantNameById)
+  }));
 }
 
 export async function updateVaultMemberRole({
@@ -189,5 +274,71 @@ export async function removeVaultMember({
 
   return {
     removed: true
+  };
+}
+
+export async function deleteOrLeaveVault(userId: string, vaultId: string) {
+  const membership = await ensureVaultMembership(userId, vaultId);
+
+  if (membership.role === VaultRole.owner) {
+    await prisma.vault.delete({
+      where: {
+        id: vaultId
+      }
+    });
+
+    return {
+      action: "deleted" as const
+    };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const plantIds = await tx.plant.findMany({
+      where: {
+        vaultId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        vaultId,
+        userId,
+        actionType: "member_left",
+        entityType: "member",
+        entityId: userId
+      }
+    });
+
+    await tx.notificationSetting.deleteMany({
+      where: {
+        userId,
+        OR: [
+          {
+            vaultId
+          },
+          {
+            plantId: {
+              in: plantIds.map((plant) => plant.id)
+            }
+          }
+        ]
+      }
+    });
+
+    await tx.vaultMember.delete({
+      where: {
+        vaultId_userId: {
+          vaultId,
+          userId
+        }
+      }
+    });
+  });
+
+  return {
+    action: "left" as const
   };
 }

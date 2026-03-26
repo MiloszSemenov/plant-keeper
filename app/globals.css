@@ -202,6 +202,7 @@ code {
 
 .nav-links,
 .vault-list,
+.vault-group,
 .stack-md,
 .stack-sm,
 .stack-xs {
@@ -224,6 +225,10 @@ code {
 .nav-links,
 .vault-list {
   gap: 0.5rem;
+}
+
+.vault-group {
+  gap: 0.45rem;
 }
 
 .nav-link,
@@ -304,6 +309,7 @@ code {
 }
 
 .dashboard-columns,
+.plant-grid,
 .settings-grid,
 .detail-grid,
 .feature-grid,
@@ -316,6 +322,10 @@ code {
 .dashboard-columns {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
+}
+
+.plant-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .settings-grid,
@@ -339,6 +349,10 @@ code {
 }
 
 .section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 0 0.15rem;
 }
 
@@ -492,6 +506,14 @@ code {
   color: white;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  padding-inline: 0.75rem;
+}
+
 .google-mark {
   display: inline-grid;
   place-items: center;
@@ -532,6 +554,11 @@ code {
 .status-success {
   background: rgba(46, 114, 83, 0.12);
   color: var(--success);
+}
+
+.status-neutral {
+  background: rgba(64, 72, 68, 0.1);
+  color: rgba(64, 72, 68, 0.9);
 }
 
 .field {
@@ -656,6 +683,11 @@ code {
   justify-content: flex-end;
 }
 
+.member-actions .field-error {
+  width: 100%;
+  margin: 0;
+}
+
 .member-actions select {
   min-height: 2.75rem;
   min-width: 10rem;
@@ -728,6 +760,19 @@ code {
   cursor: pointer;
 }
 
+.suggestion-media {
+  display: block;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.suggestion-media img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
 .suggestion-card.active {
   border-color: rgba(33, 79, 57, 0.28);
   background: rgba(255, 255, 255, 0.92);
@@ -789,6 +834,11 @@ code {
   margin: 0;
   text-align: right;
   font-weight: 700;
+}
+
+.detail-note {
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .history-item,
@@ -1016,6 +1066,7 @@ code {
   .landing-hero,
   .detail-hero,
   .dashboard-columns,
+  .plant-grid,
   .feature-grid,
   .marketing-stat-grid,
   .settings-grid,
@@ -1056,7 +1107,8 @@ code {
   }
 
   .setting-row,
-  .member-row {
+  .member-row,
+  .section-heading {
     align-items: stretch;
     flex-direction: column;
   }

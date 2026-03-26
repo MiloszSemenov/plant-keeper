@@ -4,12 +4,23 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+type DashboardWateringAction = {
+  vaultId: string;
+  section: "overdue" | "today" | "upcoming";
+  devMode?: boolean;
+  dayOffset?: number;
+};
+
 export function MarkWateredButton({
   plantId,
-  className
+  className,
+  label,
+  dashboardAction
 }: {
-  plantId: string;
+  plantId?: string;
   className?: string;
+  label?: string;
+  dashboardAction?: DashboardWateringAction;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -20,9 +31,25 @@ export function MarkWateredButton({
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {
-          const response = await fetch(`/api/plants/${plantId}/water`, {
-            method: "POST"
-          });
+          const response = dashboardAction
+            ? await fetch("/api/plants/dashboard", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  vaultId: dashboardAction.vaultId,
+                  section: dashboardAction.section,
+                  devMode: dashboardAction.devMode ? "true" : undefined,
+                  dayOffset:
+                    dashboardAction.dayOffset === undefined
+                      ? undefined
+                      : String(dashboardAction.dayOffset)
+                })
+              })
+            : await fetch(`/api/plants/${plantId}/water`, {
+                method: "POST"
+              });
 
           if (!response.ok) {
             const payload = await response.json().catch(() => ({ error: "Unable to update plant" }));
@@ -35,7 +62,7 @@ export function MarkWateredButton({
       }}
       type="button"
     >
-      {isPending ? "Updating..." : "Mark watered"}
+      {isPending ? "Updating..." : label ?? (dashboardAction ? "Mark all watered" : "Mark watered")}
     </button>
   );
 }

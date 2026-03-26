@@ -21,6 +21,9 @@ export function PlantDetailEditor({
   imageUrl: initialImageUrl,
   nextWateringAt,
   wateringIntervalDays: initialWateringIntervalDays,
+  recommendedWateringIntervalDays,
+  observedWateringIntervalDays,
+  observedWateringEventCount,
   lightRequirement,
   soilType,
   petToxic,
@@ -38,6 +41,9 @@ export function PlantDetailEditor({
   imageUrl: string | null;
   nextWateringAt: Date | string;
   wateringIntervalDays: number;
+  recommendedWateringIntervalDays: number;
+  observedWateringIntervalDays: number | null;
+  observedWateringEventCount: number;
   lightRequirement: string | null;
   soilType: string | null;
   petToxic: boolean | null;
@@ -259,22 +265,30 @@ export function PlantDetailEditor({
               <dt>Water every</dt>
               <dd>
                 {isEditing ? (
-                  <div className="interval-stepper">
-                    <button
-                      className="button button-ghost"
-                      onClick={() => setWateringIntervalDays((value) => Math.max(1, value - 1))}
-                      type="button"
-                    >
-                      -
-                    </button>
-                    <strong>{formatIntervalLabel(wateringIntervalDays)}</strong>
-                    <button
-                      className="button button-ghost"
-                      onClick={() => setWateringIntervalDays((value) => Math.min(45, value + 1))}
-                      type="button"
-                    >
-                      +
-                    </button>
+                  <div className="stack-xs">
+                    <div className="interval-stepper">
+                      <button
+                        className="button button-ghost"
+                        onClick={() => setWateringIntervalDays((value) => Math.max(1, value - 1))}
+                        type="button"
+                      >
+                        -
+                      </button>
+                      <strong>{formatIntervalLabel(wateringIntervalDays)}</strong>
+                      <button
+                        className="button button-ghost"
+                        onClick={() => setWateringIntervalDays((value) => Math.min(45, value + 1))}
+                        type="button"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p className="muted detail-note">
+                      Recommended: every {formatIntervalLabel(recommendedWateringIntervalDays)}
+                      {observedWateringIntervalDays
+                        ? ` (users water this plant every ${formatIntervalLabel(observedWateringIntervalDays)} based on ${observedWateringEventCount} events)`
+                        : ""}
+                    </p>
                   </div>
                 ) : (
                   `${wateringIntervalDays} days`

@@ -1,3 +1,4 @@
+import { type Prisma } from "@prisma/client";
 import { prisma } from "@/db/client";
 import { ApiError } from "@/lib/http";
 import { addDays, endOfLocalDay, startOfLocalDay } from "@/lib/time";
@@ -9,6 +10,10 @@ import {
   ensureVaultMembership
 } from "@/services/vaults";
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+export type DashboardSection = "overdue" | "today" | "upcoming";
+
 function getEffectiveWateringIntervalDays(plant: {
   customWateringIntervalDays: number | null;
   species: {
@@ -16,6 +21,112 @@ function getEffectiveWateringIntervalDays(plant: {
   };
 }) {
   return plant.customWateringIntervalDays ?? plant.species.wateringIntervalDays;
+}
+
+function splitDashboardPlants<T extends { nextWateringAt: Date }>(plants: T[], now: Date) {
+  const todayStart = startOfLocalDay(now);
+  const todayEnd = endOfLocalDay(now);
+
+  return {
+    overdue: plants.filter((plant) => plant.nextWateringAt < todayStart),
+    today: plants.filter(
+      (plant) => plant.nextWateringAt >= todayStart && plant.nextWateringAt <= todayEnd
+    ),
+    upcoming: plants.filter((plant) => plant.nextWateringAt > todayEnd)
+  };
+}
+
+function getObservedWateringIntervalDays(events: Array<{ wateredAt: Date }>) {
+  if (events.length < 3) {
+    return null;
+  }
+
+  const intervals: number[] = [];
+
+  for (let index = 0; index < events.length - 1; index += 1) {
+    const newerEvent = events[index];
+    const olderEvent = events[index + 1];
+    const intervalDays = Math.max(
+      1,
+      Math.round((newerEvent.wateredAt.getTime() - olderEvent.wateredAt.getTime()) / DAY_IN_MS)
+    );
+
+    intervals.push(intervalDays);
+  }
+
+  if (intervals.length === 0) {
+    return null;
+  }
+
+  const averageIntervalDays =
+    intervals.reduce((total, intervalDays) => total + intervalDays, 0) / intervals.length;
+
+  return Math.round(averageIntervalDays);
+}
+
+export async function getVaultPlants(userId: string, vaultId: string) {
+  await ensureVaultMembership(userId, vaultId);
+
+  return prisma.plant.findMany({
+    where: {
+      vaultId
+    },
+    include: {
+      species: true
+    },
+    orderBy: {
+      nextWateringAt: "asc"
+    }
+  });
+}
+
+async function waterPlantWithRecord(
+  tx: Prisma.TransactionClient,
+  plant: {
+    id: string;
+    customWateringIntervalDays: number | null;
+    species: {
+      wateringIntervalDays: number;
+    };
+  },
+  userId: string,
+  wateredAt: Date
+) {
+  const wateringIntervalDays = getEffectiveWateringIntervalDays(plant);
+
+  const updatedPlant = await tx.plant.update({
+    where: {
+      id: plant.id
+    },
+    data: {
+      lastWateredAt: wateredAt,
+      nextWateringAt: addDays(wateredAt, wateringIntervalDays)
+    },
+    include: {
+      species: true,
+      vault: true
+    }
+  });
+
+  await tx.plantWateringEvent.create({
+    data: {
+      plantId: plant.id,
+      wateredBy: userId,
+      wateredAt
+    }
+  });
+
+  await tx.activityLog.create({
+    data: {
+      vaultId: updatedPlant.vault.id,
+      userId,
+      actionType: "plant_watered",
+      entityType: "plant",
+      entityId: updatedPlant.id
+    }
+  });
+
+  return updatedPlant;
 }
 
 export async function createPlant({
@@ -38,19 +149,33 @@ export async function createPlant({
   const imageUrl = image ? await savePlantImage(image) : null;
   const plantNickname = nickname?.trim() || speciesRecord.scientificName;
 
-  return prisma.plant.create({
-    data: {
-      vaultId,
-      speciesId: speciesRecord.id,
-      nickname: plantNickname,
-      imageUrl,
-      lastWateredAt: now,
-      nextWateringAt: addDays(now, speciesRecord.wateringIntervalDays)
-    },
-    include: {
-      species: true,
-      vault: true
-    }
+  return prisma.$transaction(async (tx) => {
+    const plant = await tx.plant.create({
+      data: {
+        vaultId,
+        speciesId: speciesRecord.id,
+        nickname: plantNickname,
+        imageUrl,
+        lastWateredAt: now,
+        nextWateringAt: addDays(now, speciesRecord.wateringIntervalDays)
+      },
+      include: {
+        species: true,
+        vault: true
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        vaultId,
+        userId,
+        actionType: "plant_created",
+        entityType: "plant",
+        entityId: plant.id
+      }
+    });
+
+    return plant;
   });
 }
 
@@ -61,31 +186,9 @@ export async function getDashboard(
     now?: Date;
   }
 ) {
-  await ensureVaultMembership(userId, vaultId);
-
-  const plants = await prisma.plant.findMany({
-    where: {
-      vaultId
-    },
-    include: {
-      species: true
-    },
-    orderBy: {
-      nextWateringAt: "asc"
-    }
-  });
-
+  const plants = await getVaultPlants(userId, vaultId);
   const now = options?.now ?? new Date();
-  const todayStart = startOfLocalDay(now);
-  const todayEnd = endOfLocalDay(now);
-
-  return {
-    overdue: plants.filter((plant) => plant.nextWateringAt < todayStart),
-    today: plants.filter(
-      (plant) => plant.nextWateringAt >= todayStart && plant.nextWateringAt <= todayEnd
-    ),
-    upcoming: plants.filter((plant) => plant.nextWateringAt > todayEnd)
-  };
+  return splitDashboardPlants(plants, now);
 }
 
 export async function getPlantDetail(userId: string, plantId: string) {
@@ -138,10 +241,17 @@ export async function getPlantDetail(userId: string, plantId: string) {
     throw new ApiError(403, "You do not have access to this plant");
   }
 
+  const observedWateringIntervalDays = getObservedWateringIntervalDays(plant.wateringEvents);
+
   return {
     ...plant,
     viewerRole: viewerMembership.role,
-    canEdit: canManagePlants(viewerMembership.role)
+    canEdit: canManagePlants(viewerMembership.role),
+    wateringInsights: {
+      recommendedIntervalDays: plant.species.wateringIntervalDays,
+      observedIntervalDays: observedWateringIntervalDays,
+      observedEventCount: plant.wateringEvents.length
+    }
   };
 }
 
@@ -202,32 +312,44 @@ export async function deletePlant(userId: string, plantId: string) {
 
 export async function markPlantWatered(userId: string, plantId: string) {
   const plant = await getPlantDetail(userId, plantId);
-  const now = new Date();
-  const wateringIntervalDays = getEffectiveWateringIntervalDays(plant);
+  const wateredAt = new Date();
 
-  return prisma.$transaction(async (tx) => {
-    const updatedPlant = await tx.plant.update({
-      where: {
-        id: plant.id
-      },
-      data: {
-        lastWateredAt: now,
-        nextWateringAt: addDays(now, wateringIntervalDays)
-      },
-      include: {
-        species: true,
-        vault: true
-      }
-    });
+  return prisma.$transaction((tx) => waterPlantWithRecord(tx, plant, userId, wateredAt));
+}
 
-    await tx.plantWateringEvent.create({
-      data: {
-        plantId: plant.id,
-        wateredBy: userId,
-        wateredAt: now
-      }
-    });
+export async function markDashboardSectionWatered(
+  userId: string,
+  vaultId: string,
+  section: DashboardSection,
+  options?: {
+    now?: Date;
+  }
+) {
+  const dashboard = await getDashboard(userId, vaultId, options);
+  const plantsToWater = dashboard[section];
+  const wateredAt = options?.now ?? new Date();
 
-    return updatedPlant;
+  if (plantsToWater.length === 0) {
+    return {
+      section,
+      updatedCount: 0,
+      plants: []
+    };
+  }
+
+  const plants = await prisma.$transaction(async (tx) => {
+    const updatedPlants = [];
+
+    for (const plant of plantsToWater) {
+      updatedPlants.push(await waterPlantWithRecord(tx, plant, userId, wateredAt));
+    }
+
+    return updatedPlants;
   });
+
+  return {
+    section,
+    updatedCount: plants.length,
+    plants
+  };
 }

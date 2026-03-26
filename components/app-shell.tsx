@@ -25,13 +25,41 @@ export function AppShell({
   description: string;
   userName?: string | null;
   currentVaultId?: string;
-  currentPath: "/dashboard" | "/add-plant" | "/spaces/settings";
+  currentPath: "/dashboard" | "/plants" | "/add-plant" | "/spaces/settings";
   canManagePlants?: boolean;
   vaults: VaultOption[];
   actions?: ReactNode;
   children: ReactNode;
 }) {
   const hrefForVault = (vaultId: string) => `${currentPath}?vaultId=${vaultId}`;
+  const myCollections = vaults.filter((vault) => vault.role === "owner");
+  const sharedCollections = vaults.filter((vault) => vault.role !== "owner");
+
+  function renderVaultGroup(label: string, items: VaultOption[]) {
+    if (items.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="vault-group">
+        <p className="eyebrow">{label}</p>
+        <div className="vault-list">
+          {items.map((vault) => (
+            <Link
+              className={vault.id === currentVaultId ? "vault-chip active" : "vault-chip"}
+              href={hrefForVault(vault.id)}
+              key={vault.id}
+            >
+              <strong>{vault.name}</strong>
+              <span>
+                {vault.plantCount} plants | {vault.memberCount} members
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -75,6 +103,12 @@ export function AppShell({
                 </Link>
               ) : null}
               <Link
+                className={currentPath === "/plants" ? "nav-link active" : "nav-link"}
+                href={currentVaultId ? `/plants?vaultId=${currentVaultId}` : "/plants"}
+              >
+                All plants
+              </Link>
+              <Link
                 className={currentPath === "/spaces/settings" ? "nav-link active" : "nav-link"}
                 href={currentVaultId ? `/spaces/settings?vaultId=${currentVaultId}` : "/spaces/settings"}
               >
@@ -86,22 +120,10 @@ export function AppShell({
           <div className="stack-sm">
             <div>
               <p className="eyebrow">Spaces</p>
-              <h3>Shared collections</h3>
+              <h3>Collections</h3>
             </div>
-            <div className="vault-list">
-              {vaults.map((vault) => (
-                <Link
-                  className={vault.id === currentVaultId ? "vault-chip active" : "vault-chip"}
-                  href={hrefForVault(vault.id)}
-                  key={vault.id}
-                >
-                  <strong>{vault.name}</strong>
-                  <span>
-                    {vault.plantCount} plants | {vault.memberCount} members
-                  </span>
-                </Link>
-              ))}
-            </div>
+            {renderVaultGroup("My Collections", myCollections)}
+            {renderVaultGroup("Shared Collections", sharedCollections)}
           </div>
         </aside>
 

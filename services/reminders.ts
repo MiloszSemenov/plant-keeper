@@ -14,6 +14,29 @@ function getNotificationKey(userId: string, scopeId: string) {
   return `${userId}:${scopeId}`;
 }
 
+function isEmailReminderEnabled({
+  userId,
+  plantId,
+  vaultId,
+  plantNotificationMap,
+  vaultNotificationMap
+}: {
+  userId: string;
+  plantId: string;
+  vaultId: string;
+  plantNotificationMap: Map<string, boolean>;
+  vaultNotificationMap: Map<string, boolean>;
+}) {
+  const plantSetting = plantNotificationMap.get(getNotificationKey(userId, plantId));
+
+  if (plantSetting !== undefined) {
+    return plantSetting;
+  }
+
+  const vaultSetting = vaultNotificationMap.get(getNotificationKey(userId, vaultId));
+  return vaultSetting === true;
+}
+
 export async function sendDailyWateringReminders(options?: {
   now?: Date;
   debug?: boolean;
@@ -115,13 +138,15 @@ export async function sendDailyWateringReminders(options?: {
 
   for (const plant of duePlants) {
     for (const membership of plant.vault.memberships) {
-      const plantKey = getNotificationKey(membership.userId, plant.id);
-      const vaultKey = getNotificationKey(membership.userId, plant.vaultId);
-      const emailEnabled = plantNotificationMap.has(plantKey)
-        ? plantNotificationMap.get(plantKey)
-        : vaultNotificationMap.get(vaultKey);
+      const emailEnabled = isEmailReminderEnabled({
+        userId: membership.userId,
+        plantId: plant.id,
+        vaultId: plant.vaultId,
+        plantNotificationMap,
+        vaultNotificationMap
+      });
 
-      if (emailEnabled !== true) {
+      if (!emailEnabled) {
         notificationsDisabledSkips += 1;
         continue;
       }

@@ -1,8 +1,7 @@
-import { requireUser } from "@/lib/auth-helpers";
-import { canManagePlants, listUserVaults } from "@/services/vaults";
+import { requireUserVault } from "@/lib/auth-helpers";
+import { canManagePlants } from "@/services/vaults";
 import { AppShell } from "@/components/app-shell";
 import { AddPlantForm } from "@/components/add-plant-form";
-import { CreateVaultForm } from "@/components/create-vault-form";
 import { EmptyState } from "@/components/empty-state";
 
 type AddPlantPageProps = {
@@ -12,27 +11,8 @@ type AddPlantPageProps = {
 };
 
 export default async function AddPlantPage({ searchParams }: AddPlantPageProps) {
-  const user = await requireUser();
-  const memberships = await listUserVaults(user.id);
-
-  if (memberships.length === 0) {
-    return (
-      <main className="marketing-shell">
-        <section className="panel">
-          <EmptyState
-            eyebrow="Spaces"
-            title="Create a space before adding plants"
-            description="Spaces are the shared home for your collection, reminders, and members."
-            action={<CreateVaultForm />}
-          />
-        </section>
-      </main>
-    );
-  }
-
   const params = await searchParams;
-  const selectedMembership =
-    memberships.find((membership) => membership.vault.id === params.vaultId) ?? memberships[0];
+  const { user, memberships, selectedMembership } = await requireUserVault(params.vaultId);
   const userCanManagePlants = canManagePlants(selectedMembership.role);
   const vaults = memberships.map((membership) => ({
     id: membership.vault.id,
