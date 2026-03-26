@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { VaultRole } from "@prisma/client";
 import { prisma } from "@/db/client";
+import { syncGoogleCalendarIntegration } from "@/services/google-calendar";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -27,6 +28,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }
   },
   events: {
+    async signIn({ user, account }) {
+      if (!user.id || !account) {
+        return;
+      }
+
+      await syncGoogleCalendarIntegration({
+        userId: user.id,
+        account
+      });
+    },
     async createUser({ user }) {
       const userId = user.id;
 

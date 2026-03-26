@@ -1,113 +1,112 @@
 import { prisma } from "@/db/client";
+import { getDevModeState } from "@/lib/dev-mode";
 import { getAppUrl, requireEnv } from "@/lib/env";
 import { ApiError } from "@/lib/http";
-import { endOfUtcDay, startOfUtcDay } from "@/lib/time";
+import { addDays, startOfUtcDay } from "@/lib/time";
 
 const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
-const DEFAULT_REMINDER_HOUR_UTC = 9;
-const DEFAULT_EVENT_DURATION_MINUTES = 30;
+const GOOGLE_PROVIDER = "google";
+const DEFAULT_CALENDAR_ID = "primary";
+const REMINDER_EVENT_MARKER = "watering_reminder";
+
+type GoogleCalendarIntegrationAccount = {
+  provider?: string;
+  scope?: string | null;
+  access_token?: string | null;
+  refresh_token?: string | null;
+  expires_at?: number | null;
+};
+
+type ReminderDuePlant = {
+  vault: {
+    memberships: Array<{
+      userId: string;
+    }>;
+  };
+};
 
 function hasCalendarScope(scope: string | null) {
   return Boolean(scope?.split(" ").includes(GOOGLE_CALENDAR_SCOPE));
 }
 
-function removeCalendarScope(scope: string | null) {
-  if (!scope) {
-    return null;
-  }
-
-  const nextScope = scope
-    .split(" ")
-    .map((item) => item.trim())
-    .filter((item) => item && item !== GOOGLE_CALENDAR_SCOPE)
-    .join(" ");
-
-  return nextScope || null;
+function formatAllDayDate(date: Date) {
+  return startOfUtcDay(date).toISOString().slice(0, 10);
 }
 
-function getDailyEventDateTime(date: Date) {
+function buildReminderPayload(date: Date) {
   const day = startOfUtcDay(date);
 
   return {
-    start: new Date(
-      Date.UTC(
-        day.getUTCFullYear(),
-        day.getUTCMonth(),
-        day.getUTCDate(),
-        DEFAULT_REMINDER_HOUR_UTC,
-        0,
-        0
-      )
-    ),
-    end: new Date(
-      Date.UTC(
-        day.getUTCFullYear(),
-        day.getUTCMonth(),
-        day.getUTCDate(),
-        DEFAULT_REMINDER_HOUR_UTC,
-        DEFAULT_EVENT_DURATION_MINUTES,
-        0
-      )
-    )
-  };
-}
-
-function buildDashboardUrl(vaultId: string) {
-  return `${getAppUrl()}/dashboard?vaultId=${vaultId}`;
-}
-
-function buildDailyEventPayload(date: Date, vaultId: string) {
-  const { start, end } = getDailyEventDateTime(date);
-
-  return {
     summary: "Water your plants",
-    description: `Plant Keeper reminder\n${buildDashboardUrl(vaultId)}`,
+    description: `Plant Keeper reminder\n${getAppUrl()}/dashboard`,
     start: {
-      dateTime: start.toISOString(),
-      timeZone: "UTC"
+      date: formatAllDayDate(day)
     },
     end: {
-      dateTime: end.toISOString(),
-      timeZone: "UTC"
+      date: formatAllDayDate(addDays(day, 1))
+    },
+    extendedProperties: {
+      private: {
+        plantKeeperType: REMINDER_EVENT_MARKER,
+        plantKeeperDate: formatAllDayDate(day)
+      }
     }
   };
 }
 
-export async function getGoogleAccount(userId: string) {
-  const accounts = await prisma.account.findMany({
-    where: {
-      userId,
-      provider: "google"
-    },
-    orderBy: {
-      id: "asc"
-    }
-  });
-
-  return accounts.find((account) => hasCalendarScope(account.scope)) ?? accounts[0] ?? null;
-}
-
-export async function getGoogleCalendarAccount(userId: string) {
-  const accounts = await prisma.account.findMany({
-    where: {
-      userId,
-      provider: "google"
-    },
-    orderBy: {
-      id: "asc"
-    }
-  });
-
-  return accounts.find((account) => hasCalendarScope(account.scope)) ?? null;
-}
-
-async function refreshGoogleAccessToken(account: {
-  id: string;
-  refresh_token: string | null;
+export async function syncGoogleCalendarIntegration({
+  userId,
+  account
+}: {
+  userId: string;
+  account: GoogleCalendarIntegrationAccount;
 }) {
-  const refreshToken = account.refresh_token;
+  if (account.provider !== GOOGLE_PROVIDER || !hasCalendarScope(account.scope ?? null)) {
+    return null;
+  }
 
-  if (!refreshToken) {
+  const existing = await prisma.userIntegration.findUnique({
+    where: {
+      userId_provider: {
+        userId,
+        provider: GOOGLE_PROVIDER
+      }
+    }
+  });
+
+  return prisma.userIntegration.upsert({
+    where: {
+      userId_provider: {
+        userId,
+        provider: GOOGLE_PROVIDER
+      }
+    },
+    update: {
+      accessToken: account.access_token ?? existing?.accessToken ?? null,
+      refreshToken: account.refresh_token ?? existing?.refreshToken ?? null,
+      tokenExpiresAt:
+        typeof account.expires_at === "number"
+          ? new Date(account.expires_at * 1000)
+          : existing?.tokenExpiresAt ?? null,
+      calendarId: existing?.calendarId ?? DEFAULT_CALENDAR_ID
+    },
+    create: {
+      userId,
+      provider: GOOGLE_PROVIDER,
+      accessToken: account.access_token ?? null,
+      refreshToken: account.refresh_token ?? null,
+      tokenExpiresAt:
+        typeof account.expires_at === "number" ? new Date(account.expires_at * 1000) : null,
+      calendarId: DEFAULT_CALENDAR_ID
+    }
+  });
+}
+
+async function refreshGoogleAccessToken(integration: {
+  id: string;
+  refreshToken: string | null;
+}) {
+  if (!integration.refreshToken) {
     throw new ApiError(400, "Google Calendar is not connected. Reconnect your Google account.");
   }
 
@@ -120,7 +119,7 @@ async function refreshGoogleAccessToken(account: {
       client_id: requireEnv("GOOGLE_CLIENT_ID"),
       client_secret: requireEnv("GOOGLE_CLIENT_SECRET"),
       grant_type: "refresh_token",
-      refresh_token: refreshToken
+      refresh_token: integration.refreshToken
     })
   });
 
@@ -130,56 +129,62 @@ async function refreshGoogleAccessToken(account: {
   }
 
   const payload = await response.json();
-  const expiresAt =
-    typeof payload.expires_in === "number"
-      ? Math.floor(Date.now() / 1000) + payload.expires_in
-      : null;
 
-  return prisma.account.update({
+  return prisma.userIntegration.update({
     where: {
-      id: account.id
+      id: integration.id
     },
     data: {
-      access_token: typeof payload.access_token === "string" ? payload.access_token : undefined,
-      expires_at: expiresAt ?? undefined,
-      token_type: typeof payload.token_type === "string" ? payload.token_type : undefined,
-      scope: typeof payload.scope === "string" ? payload.scope : undefined,
-      refresh_token:
-        typeof payload.refresh_token === "string" ? payload.refresh_token : undefined
+      accessToken: typeof payload.access_token === "string" ? payload.access_token : null,
+      refreshToken:
+        typeof payload.refresh_token === "string"
+          ? payload.refresh_token
+          : integration.refreshToken,
+      tokenExpiresAt:
+        typeof payload.expires_in === "number"
+          ? new Date(Date.now() + payload.expires_in * 1000)
+          : null
     }
   });
 }
 
-async function getGoogleAccessToken(userId: string) {
-  const account = await getGoogleCalendarAccount(userId);
-
-  if (!account) {
-    throw new ApiError(400, "Google Calendar is not connected.");
-  }
-
-  const expiresAt = account.expires_at ?? 0;
-  const isExpired = !account.access_token || expiresAt <= Math.floor(Date.now() / 1000) + 60;
+async function getGoogleAccessToken(integration: {
+  id: string;
+  accessToken: string | null;
+  refreshToken: string | null;
+  tokenExpiresAt: Date | null;
+}) {
+  const isExpired =
+    !integration.accessToken ||
+    !integration.tokenExpiresAt ||
+    integration.tokenExpiresAt.getTime() <= Date.now() + 60 * 1000;
 
   if (!isExpired) {
-    return account.access_token;
+    return integration.accessToken;
   }
 
-  const refreshedAccount = await refreshGoogleAccessToken(account);
+  const refreshedIntegration = await refreshGoogleAccessToken(integration);
 
-  if (!refreshedAccount.access_token) {
+  if (!refreshedIntegration.accessToken) {
     throw new ApiError(400, "Google Calendar is not connected.");
   }
 
-  return refreshedAccount.access_token;
+  return refreshedIntegration.accessToken;
 }
 
 async function googleCalendarRequest(
-  userId: string,
+  integration: {
+    id: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    tokenExpiresAt: Date | null;
+  },
   path: string,
   options?: RequestInit
 ) {
-  const accessToken = await getGoogleAccessToken(userId);
-  const response = await fetch(`https://www.googleapis.com/calendar/v3${path}`, {
+  const accessToken = await getGoogleAccessToken(integration);
+
+  return fetch(`https://www.googleapis.com/calendar/v3${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -187,240 +192,213 @@ async function googleCalendarRequest(
       ...(options?.headers ?? {})
     }
   });
-
-  return response;
 }
 
-export async function createOrUpdateDailyEvent(userId: string, date: Date, vaultId: string) {
-  const normalizedDate = startOfUtcDay(date);
-  const existingEvent = await prisma.calendarDailyEvent.findUnique({
-    where: {
-      userId_date: {
-        userId,
-        date: normalizedDate
-      }
-    }
+async function listReminderEvents(
+  integration: {
+    id: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    tokenExpiresAt: Date | null;
+    calendarId: string | null;
+  },
+  date: Date
+) {
+  const day = startOfUtcDay(date);
+  const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
+  const params = new URLSearchParams({
+    singleEvents: "true",
+    timeMin: day.toISOString(),
+    timeMax: addDays(day, 1).toISOString(),
+    privateExtendedProperty: `plantKeeperType=${REMINDER_EVENT_MARKER}`
   });
-  const payload = buildDailyEventPayload(normalizedDate, vaultId);
-
-  if (!existingEvent) {
-    const response = await googleCalendarRequest(userId, "/calendars/primary/events", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new ApiError(502, `Google Calendar event creation failed: ${text || response.statusText}`);
-    }
-
-    const createdEvent = await response.json();
-    const googleEventId =
-      typeof createdEvent.id === "string" ? createdEvent.id : null;
-
-    if (!googleEventId) {
-      throw new ApiError(502, "Google Calendar event creation returned an invalid event id");
-    }
-
-    const calendarEvent = await prisma.calendarDailyEvent.create({
-      data: {
-        userId,
-        date: normalizedDate,
-        googleEventId
-      }
-    });
-
-    return {
-      created: true,
-      event: calendarEvent
-    };
-  }
-
   const response = await googleCalendarRequest(
-    userId,
-    `/calendars/primary/events/${encodeURIComponent(existingEvent.googleEventId)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload)
-    }
+    integration,
+    `/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`
   );
-
-  if (response.status === 404) {
-    await prisma.calendarDailyEvent.delete({
-      where: {
-        id: existingEvent.id
-      }
-    });
-
-    return createOrUpdateDailyEvent(userId, normalizedDate, vaultId);
-  }
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(502, `Google Calendar event update failed: ${text || response.statusText}`);
+    throw new ApiError(502, `Google Calendar event lookup failed: ${text || response.statusText}`);
   }
 
-  const calendarEvent = await prisma.calendarDailyEvent.update({
-    where: {
-      id: existingEvent.id
-    },
-    data: {
-      updatedAt: new Date()
-    }
-  });
-
-  return {
-    created: false,
-    event: calendarEvent
+  const payload = (await response.json()) as {
+    items?: Array<{
+      id?: string;
+    }>;
   };
+
+  return Array.isArray(payload.items) ? payload.items : [];
 }
 
-export async function deleteDailyEvent(userId: string, date: Date) {
-  const normalizedDate = startOfUtcDay(date);
-  const existingEvent = await prisma.calendarDailyEvent.findUnique({
-    where: {
-      userId_date: {
-        userId,
-        date: normalizedDate
-      }
-    }
-  });
-
-  if (!existingEvent) {
-    return {
-      deleted: false
-    };
-  }
-
+async function createReminderEvent(
+  integration: {
+    id: string;
+    userId: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    tokenExpiresAt: Date | null;
+    calendarId: string | null;
+  },
+  date: Date
+) {
+  const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
   const response = await googleCalendarRequest(
-    userId,
-    `/calendars/primary/events/${encodeURIComponent(existingEvent.googleEventId)}`,
+    integration,
+    `/calendars/${encodeURIComponent(calendarId)}/events`,
     {
-      method: "DELETE"
+      method: "POST",
+      body: JSON.stringify(buildReminderPayload(date))
     }
-  ).catch(() => null);
-
-  if (response && !response.ok && response.status !== 404) {
-    const text = await response.text();
-    throw new ApiError(502, `Google Calendar event deletion failed: ${text || response.statusText}`);
-  }
-
-  await prisma.calendarDailyEvent.delete({
-    where: {
-      id: existingEvent.id
-    }
-  });
-
-  return {
-    deleted: true
-  };
-}
-
-async function findCalendarEligibleVaultId(userId: string, date: Date) {
-  const duePlants = await prisma.plant.findMany({
-    where: {
-      nextWateringAt: {
-        lte: endOfUtcDay(date)
-      },
-      vault: {
-        memberships: {
-          some: {
-            userId
-          }
-        }
-      }
-    },
-    include: {
-      notificationSettings: {
-        where: {
-          userId
-        },
-        take: 1
-      },
-      vault: {
-        include: {
-          notificationSettings: {
-            where: {
-              userId
-            },
-            take: 1
-          }
-        }
-      }
-    },
-    orderBy: {
-      nextWateringAt: "asc"
-    }
-  });
-
-  const eligiblePlant = duePlants.find(
-    (plant) =>
-      plant.notificationSettings[0]?.calendarEnabled ??
-      plant.vault.notificationSettings[0]?.calendarEnabled ??
-      false
   );
 
-  return eligiblePlant?.vaultId ?? null;
-}
-
-export async function syncDailyEventsForUser(userId: string, date = new Date()) {
-  const vaultId = await findCalendarEligibleVaultId(userId, date);
-
-  if (!vaultId) {
-    return deleteDailyEvent(userId, date);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(502, `Google Calendar event creation failed: ${text || response.statusText}`);
   }
 
-  return createOrUpdateDailyEvent(userId, date, vaultId);
+  return response.json();
 }
 
-export async function disconnectGoogleCalendar(userId: string) {
-  const googleAccounts = await prisma.account.findMany({
-    where: {
-      userId,
-      provider: "google"
-    }
-  });
-  const events = await prisma.calendarDailyEvent.findMany({
-    where: {
-      userId
-    }
-  });
+async function deleteReminderEvents(
+  integration: {
+    id: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    tokenExpiresAt: Date | null;
+    calendarId: string | null;
+  },
+  date: Date
+) {
+  const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
+  const events = await listReminderEvents(integration, date);
+  let deletedCount = 0;
 
   for (const event of events) {
-    await deleteDailyEvent(userId, event.date).catch(() => null);
-  }
-
-  await prisma.notificationSetting.updateMany({
-    where: {
-      userId
-    },
-    data: {
-      calendarEnabled: false
-    }
-  });
-
-  for (const account of googleAccounts) {
-    const nextScope = removeCalendarScope(account.scope);
-
-    if (nextScope === account.scope) {
+    if (!event.id) {
       continue;
     }
 
-    await prisma.account.update({
-      where: {
-        id: account.id
-      },
-      data: {
-        scope: nextScope
+    const response = await googleCalendarRequest(
+      integration,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`,
+      {
+        method: "DELETE"
       }
-    });
+    );
+
+    if (!response.ok && response.status !== 404) {
+      const text = await response.text();
+      throw new ApiError(502, `Google Calendar event deletion failed: ${text || response.statusText}`);
+    }
+
+    deletedCount += 1;
   }
+
+  return deletedCount;
+}
+
+export async function syncGoogleCalendarReminders({
+  duePlants,
+  now
+}: {
+  duePlants: ReminderDuePlant[];
+  now?: Date;
+}) {
+  const date = startOfUtcDay(now ?? new Date());
+  const devMode = getDevModeState().enabled;
+  const integrations = await prisma.userIntegration.findMany({
+    where: {
+      provider: GOOGLE_PROVIDER
+    }
+  });
+  const dueUserIds = new Set(
+    duePlants.flatMap((plant) => plant.vault.memberships.map((membership) => membership.userId))
+  );
+  let created = 0;
+  let kept = 0;
+  let deleted = 0;
+  let failed = 0;
+
+  for (const integration of integrations) {
+    try {
+      if (dueUserIds.has(integration.userId)) {
+        if (devMode) {
+          console.info(`DEV MODE: Would create calendar event for user ${integration.userId}`);
+          kept += 1;
+          continue;
+        }
+
+        const existingEvents = await listReminderEvents(integration, date);
+
+        if (existingEvents.length > 0) {
+          kept += 1;
+          continue;
+        }
+
+        await createReminderEvent(integration, date);
+        created += 1;
+        continue;
+      }
+
+      if (devMode) {
+        continue;
+      }
+
+      const deletedCount = await deleteReminderEvents(integration, date);
+
+      if (deletedCount > 0) {
+        deleted += 1;
+      }
+    } catch (error) {
+      failed += 1;
+      console.error("[google-calendar] sync_failed", {
+        userId: integration.userId,
+        error: error instanceof Error ? error.message : "unknown_error"
+      });
+    }
+  }
+
+  return {
+    integrations: integrations.length,
+    created,
+    kept,
+    deleted,
+    failed
+  };
+}
+
+export async function disconnectGoogleCalendar(userId: string) {
+  const integration = await prisma.userIntegration.findUnique({
+    where: {
+      userId_provider: {
+        userId,
+        provider: GOOGLE_PROVIDER
+      }
+    }
+  });
+
+  if (!integration) {
+    return {
+      disconnected: true
+    };
+  }
+
+  if (!getDevModeState().enabled) {
+    await deleteReminderEvents(integration, new Date()).catch(() => null);
+  }
+
+  await prisma.userIntegration.delete({
+    where: {
+      id: integration.id
+    }
+  });
 
   return {
     disconnected: true
   };
 }
 
-export function isGoogleCalendarConnected(scope: string | null) {
-  return hasCalendarScope(scope);
+export function isGoogleCalendarConnected(integration: { provider: string } | null) {
+  return integration?.provider === GOOGLE_PROVIDER;
 }

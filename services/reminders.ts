@@ -1,6 +1,7 @@
 import { prisma } from "@/db/client";
 import { endOfUtcDay, startOfUtcDay } from "@/lib/time";
 import { sendWateringReminderEmail } from "@/services/email";
+import { syncGoogleCalendarReminders } from "@/services/google-calendar";
 
 type ReminderPlant = {
   id: string;
@@ -75,6 +76,17 @@ export async function sendDailyWateringReminders(options?: {
       dueBefore: dueBefore.toISOString()
     });
   }
+
+  const calendarSummary = await syncGoogleCalendarReminders({
+    duePlants,
+    now
+  }).catch((error) => {
+    console.error("[reminders] calendar_sync_failed", {
+      error: error instanceof Error ? error.message : "unknown_error"
+    });
+
+    return null;
+  });
 
   const userIds = Array.from(
     new Set(
@@ -274,6 +286,7 @@ export async function sendDailyWateringReminders(options?: {
     sent,
     skipped,
     failed,
+    ...(calendarSummary ? { calendar: calendarSummary } : {}),
     ...(options?.debug
       ? {
           debug: {
