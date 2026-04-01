@@ -125,6 +125,7 @@ model PlantSpecies {
   petToxic               Boolean?            @map("pet_toxic")
   careNotes              String?             @map("care_notes")
   defaultImageUrl        String?             @map("default_image_url")
+  wikipediaImageUrl      String?             @map("wikipedia_image_url")
   aliases                PlantSpeciesAlias[]
   plants                 Plant[]
 
