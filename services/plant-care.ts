@@ -5,7 +5,11 @@ import { requireEnv } from '@/lib/env';
 import { normalizePlantLookupKey } from '@/lib/plants';
 import { ApiError } from '@/lib/http';
 import { searchPlantsByName } from '@/services/plant-id';
-import { saveRemotePlantImage } from '@/services/storage';
+import {
+  ensureSpeciesDefaultImage,
+  findSpeciesWikipediaImage as findWikipediaImage,
+  isStoredSpeciesImageUrl,
+} from '@/services/plants';
 
 const aiCareSchema = z.object({
   scientific_name: z.string().trim().min(2).max(140).optional(),
@@ -61,10 +65,6 @@ export type PlantSpeciesSuggestion = {
   latinName: string;
   imageUrl: string | null;
   source: 'database' | 'alias' | 'plant_id' | 'ai';
-};
-
-type WikipediaImageResult = {
-  imageUrl: string | null;
 };
 
 type WateringProfile = {
@@ -283,7 +283,16 @@ function getSpeciesImageUrl(species: {
     imageUrl: string | null;
   }>;
 }) {
-  return species.defaultImageUrl ?? species.plants?.[0]?.imageUrl ?? null;
+  const plantImageUrl =
+    typeof species.plants?.[0]?.imageUrl === 'string' &&
+    species.plants[0].imageUrl.startsWith('/')
+      ? species.plants[0].imageUrl
+      : null;
+  const defaultImageUrl = isStoredSpeciesImageUrl(species.defaultImageUrl)
+    ? species.defaultImageUrl
+    : null;
+
+  return plantImageUrl ?? defaultImageUrl ?? null;
 }
 
 async function findLocalPlantSpecies(speciesName: string) {
@@ -430,6 +439,99 @@ function mapLocalSearchResult(species: {
   };
 }
 
+async function hydrateLocalSearchResult(species: {
+  id: string;
+  scientificName: string;
+  defaultImageUrl: string | null;
+  aliases: Array<{
+    aliasName: string;
+  }>;
+  plants: Array<{
+    imageUrl: string | null;
+  }>;
+}): Promise<LocalPlantSearchResult> {
+  const userPlantImageUrl =
+    typeof species.plants[0]?.imageUrl === 'string' &&
+    species.plants[0].imageUrl.startsWith('/')
+      ? species.plants[0].imageUrl
+      : null;
+  const storedSpeciesImageUrl = isStoredSpeciesImageUrl(
+    species.defaultImageUrl,
+  )
+    ? species.defaultImageUrl
+    : null;
+  const existingImageUrl = userPlantImageUrl ?? storedSpeciesImageUrl ?? null;
+
+  console.info('[suggest][hydrate_local] start', {
+    speciesId: species.id,
+    latinName: species.scientificName,
+    defaultImageUrl: species.defaultImageUrl ?? null,
+    userPlantImageUrl,
+    existingImageUrl,
+  });
+
+  if (existingImageUrl) {
+    console.info('[suggest][hydrate_local] return_existing_image', {
+      speciesId: species.id,
+      latinName: species.scientificName,
+      returnedImageUrl: existingImageUrl,
+    });
+
+    return mapLocalSearchResult(species);
+  }
+
+  const wikipediaCandidateImageUrl =
+    species.defaultImageUrl && !isStoredSpeciesImageUrl(species.defaultImageUrl)
+      ? species.defaultImageUrl
+      : await findWikipediaImage(species.scientificName);
+
+  console.info('[suggest][hydrate_local] wikipedia_candidate', {
+    speciesId: species.id,
+    latinName: species.scientificName,
+    wikipediaImageUrl: wikipediaCandidateImageUrl,
+  });
+
+  if (!wikipediaCandidateImageUrl) {
+    console.info('[suggest][hydrate_local] return_without_candidate', {
+      speciesId: species.id,
+      latinName: species.scientificName,
+      returnedImageUrl:
+        userPlantImageUrl ?? storedSpeciesImageUrl ?? wikipediaCandidateImageUrl,
+    });
+
+    return {
+      id: species.id,
+      species: species.scientificName,
+      imageUrl:
+        userPlantImageUrl ?? storedSpeciesImageUrl ?? wikipediaCandidateImageUrl,
+      aliases: species.aliases.map((alias) => alias.aliasName),
+    };
+  }
+
+  const storedImageUrl = await ensureSpeciesDefaultImage(
+    species.id,
+    wikipediaCandidateImageUrl,
+  );
+
+  console.info('[suggest][hydrate_local] ensured_image', {
+    speciesId: species.id,
+    latinName: species.scientificName,
+    wikipediaImageUrl: wikipediaCandidateImageUrl,
+    storedImageUrl: storedImageUrl ?? null,
+  });
+
+  return {
+    id: species.id,
+    species: species.scientificName,
+    imageUrl:
+      userPlantImageUrl ??
+      storedImageUrl ??
+      storedSpeciesImageUrl ??
+      wikipediaCandidateImageUrl,
+    aliases: species.aliases.map((alias) => alias.aliasName),
+  };
+}
+
 async function searchScientificPlantSpecies(
   query: string,
 ): Promise<LocalPlantSearchResult[]> {
@@ -485,16 +587,18 @@ async function searchScientificPlantSpecies(
     take: 24,
   });
 
-  return sortSearchResults(
+  const prioritizedMatches = sortSearchResults(
     speciesMatches
       .map((species) => ({
         ...species,
         priority: getScientificSearchPriority(species, normalizedQuery),
       }))
       .filter((species) => species.priority > 0),
-  )
-    .slice(0, 3)
-    .map((species) => mapLocalSearchResult(species));
+  ).slice(0, 3);
+
+  return Promise.all(
+    prioritizedMatches.map((species) => hydrateLocalSearchResult(species)),
+  );
 }
 
 async function searchAliasPlantSpecies(
@@ -560,16 +664,18 @@ async function searchAliasPlantSpecies(
     take: 24,
   });
 
-  return sortSearchResults(
+  const prioritizedMatches = sortSearchResults(
     speciesMatches
       .map((species) => ({
         ...species,
         priority: getAliasSearchPriority(species, normalizedQuery),
       }))
       .filter((species) => species.priority > 0),
-  )
-    .slice(0, 3)
-    .map((species) => mapLocalSearchResult(species));
+  ).slice(0, 3);
+
+  return Promise.all(
+    prioritizedMatches.map((species) => hydrateLocalSearchResult(species)),
+  );
 }
 
 export async function searchLocalPlantSpecies(
@@ -666,6 +772,25 @@ async function upsertPlantSpecies(care: ResolvedPlantCare) {
 
   await storeSpeciesAliases(species.id, species.scientificName, care.aliases);
   return species;
+}
+
+async function ensureStoredSpeciesImage<
+  T extends { id: string; defaultImageUrl: string | null },
+>(species: T, imageUrl?: string | null) {
+  if (isStoredSpeciesImageUrl(species.defaultImageUrl)) {
+    return species;
+  }
+
+  const storedImageUrl = await ensureSpeciesDefaultImage(species.id, imageUrl);
+
+  if (!storedImageUrl) {
+    return species;
+  }
+
+  return {
+    ...species,
+    defaultImageUrl: storedImageUrl,
+  };
 }
 
 function getAiClientConfig() {
@@ -874,128 +999,11 @@ Rules:
   ).slice(0, 3);
 }
 
-async function findWikipediaImage(
-  latinName: string,
-): Promise<WikipediaImageResult> {
-  const endpoint = new URL(
-    'https://en.wikipedia.org/w/rest.php/v1/search/page',
-  );
-  endpoint.searchParams.set('q', latinName);
-  endpoint.searchParams.set('limit', '5');
-
-  try {
-    const response = await fetch(endpoint);
-
-    if (!response.ok) {
-      return {
-        imageUrl: null,
-      };
-    }
-
-    const payload = (await response.json()) as {
-      pages?: Array<{
-        title?: string;
-        key?: string;
-        thumbnail?: {
-          url?: string;
-        };
-      }>;
-    };
-    const normalizedQuery = normalizePlantLookupKey(latinName);
-    const pages = Array.isArray(payload.pages) ? payload.pages : [];
-    const page =
-      pages.find(
-        (candidate) =>
-          normalizePlantLookupKey(candidate.title ?? '') === normalizedQuery,
-      ) ??
-      pages.find((candidate) =>
-        normalizePlantLookupKey(candidate.title ?? '').includes(
-          normalizedQuery,
-        ),
-      ) ??
-      pages[0];
-
-    if (!page) {
-      return {
-        imageUrl: null,
-      };
-    }
-
-    return {
-      imageUrl: page.thumbnail?.url ?? null,
-    };
-  } catch {
-    return {
-      imageUrl: null,
-    };
-  }
-}
-
-async function ensureSpeciesDefaultImage(
-  speciesId: string,
-  imageUrl: string | null,
-) {
-  if (!imageUrl) {
-    return null;
-  }
-
-  try {
-    const storedImageUrl = await saveRemotePlantImage(imageUrl);
-
-    await prisma.plantSpecies.update({
-      where: {
-        id: speciesId,
-      },
-      data: {
-        defaultImageUrl: storedImageUrl,
-      },
-    });
-
-    return storedImageUrl;
-  } catch (error) {
-    console.error('[plant-care] default_image_upload_failed', {
-      speciesId,
-      imageUrl,
-      error: error instanceof Error ? error.message : 'unknown_error',
-    });
-
-    return null;
-  }
-}
-
-async function ensureSuggestedPlantSpecies({
-  latinName,
-  imageUrl,
-  source,
-}: {
-  latinName: string;
-  imageUrl: string | null;
-  source: PlantSpeciesSource;
-}) {
-  const species = await getOrCreatePlantSpecies(latinName, {
-    source,
-  });
-
-  if (species.defaultImageUrl) {
-    return species;
-  }
-
-  const storedImageUrl = await ensureSpeciesDefaultImage(species.id, imageUrl);
-
-  if (!storedImageUrl) {
-    return species;
-  }
-
-  return {
-    ...species,
-    defaultImageUrl: storedImageUrl,
-  };
-}
-
 export async function getOrCreatePlantSpecies(
   speciesName: string,
   options?: {
     source?: PlantSpeciesSource;
+    imageUrl?: string | null;
   },
 ) {
   const normalizedInput = speciesName.trim();
@@ -1011,14 +1019,17 @@ export async function getOrCreatePlantSpecies(
       speciesName: existing.scientificName,
       source: existing.source,
     });
-    return existing;
+    return ensureStoredSpeciesImage(existing, options?.imageUrl);
   }
 
   const targetSpeciesName = existing?.scientificName ?? normalizedInput;
   const aiCare = await generatePlantCare(targetSpeciesName, options?.source);
 
   if (!existing) {
-    return upsertPlantSpecies(aiCare);
+    return ensureStoredSpeciesImage(
+      await upsertPlantSpecies(aiCare),
+      options?.imageUrl,
+    );
   }
 
   console.info('[plant-care] enriching_existing_species', {
@@ -1026,13 +1037,16 @@ export async function getOrCreatePlantSpecies(
     previousSource: existing.source,
   });
 
-  return upsertPlantSpecies({
-    ...aiCare,
-    aliases: collectAliases(aiCare.scientificName, [
-      normalizedInput,
-      ...aiCare.aliases,
-    ]),
-  });
+  return ensureStoredSpeciesImage(
+    await upsertPlantSpecies({
+      ...aiCare,
+      aliases: collectAliases(aiCare.scientificName, [
+        normalizedInput,
+        ...aiCare.aliases,
+      ]),
+    }),
+    options?.imageUrl,
+  );
 }
 
 async function findScientificPlantSpecies(latinName: string) {
@@ -1066,7 +1080,7 @@ async function findScientificPlantSpecies(latinName: string) {
 
 async function hydrateExternalSuggestion({
   latinName,
-  imageUrl,
+  imageUrl: _plantIdImageUrl,
   source,
 }: {
   latinName: string;
@@ -1079,18 +1093,40 @@ async function hydrateExternalSuggestion({
     return null;
   }
 
-  const wikipediaImage = imageUrl
-    ? null
-    : await findWikipediaImage(normalizedLatinName);
-  const candidateImageUrl = imageUrl ?? wikipediaImage?.imageUrl ?? null;
+  const wikipediaImageUrl = await findWikipediaImage(normalizedLatinName);
+  const candidateImageUrl = wikipediaImageUrl ?? null;
   const existing = await findScientificPlantSpecies(normalizedLatinName);
 
+  console.info('[suggest][hydrate_external] resolved_candidate', {
+    latinName: normalizedLatinName,
+    wikipediaImageUrl,
+    candidateImageUrl,
+    speciesExistsInDb: Boolean(existing),
+    defaultImageUrlBefore: existing?.defaultImageUrl ?? null,
+    source,
+  });
+
   if (existing) {
-    if (!existing.defaultImageUrl && candidateImageUrl) {
+    let defaultImageUrlAfter = existing.defaultImageUrl ?? null;
+
+    if (!isStoredSpeciesImageUrl(existing.defaultImageUrl)) {
       const storedImageUrl = await ensureSpeciesDefaultImage(
         existing.id,
         candidateImageUrl,
       );
+
+      defaultImageUrlAfter = storedImageUrl ?? defaultImageUrlAfter;
+
+      console.info('[suggest][hydrate_external] persisted_existing_species', {
+        latinName: existing.scientificName,
+        speciesId: existing.id,
+        wikipediaImageUrl,
+        candidateImageUrl,
+        speciesExistsInDb: true,
+        defaultImageUrlBefore: existing.defaultImageUrl ?? null,
+        defaultImageUrlAfter,
+        source,
+      });
 
       if (storedImageUrl) {
         return {
@@ -1101,14 +1137,40 @@ async function hydrateExternalSuggestion({
       }
     }
 
+    const returnedImageUrl =
+      defaultImageUrlAfter ?? candidateImageUrl ?? null;
+
+    console.info('[suggest][hydrate_external] return_existing_species', {
+      latinName: existing.scientificName,
+      speciesId: existing.id,
+      wikipediaImageUrl,
+      candidateImageUrl,
+      speciesExistsInDb: true,
+      defaultImageUrlBefore: existing.defaultImageUrl ?? null,
+      defaultImageUrlAfter,
+      returnedImageUrl,
+      source,
+    });
+
     return {
       latinName: existing.scientificName,
-      imageUrl: existing.defaultImageUrl,
+      imageUrl: returnedImageUrl,
       source,
     };
   }
 
   if (!candidateImageUrl) {
+    console.info('[suggest][hydrate_external] return_without_candidate', {
+      latinName: normalizedLatinName,
+      wikipediaImageUrl,
+      candidateImageUrl,
+      speciesExistsInDb: false,
+      defaultImageUrlBefore: null,
+      defaultImageUrlAfter: null,
+      returnedImageUrl: null,
+      source,
+    });
+
     return {
       latinName: normalizedLatinName,
       imageUrl: null,
@@ -1116,8 +1178,7 @@ async function hydrateExternalSuggestion({
     };
   }
 
-  const species = await ensureSuggestedPlantSpecies({
-    latinName: normalizedLatinName,
+  const species = await getOrCreatePlantSpecies(normalizedLatinName, {
     imageUrl: candidateImageUrl,
     source:
       source === 'plant_id'
@@ -1125,9 +1186,21 @@ async function hydrateExternalSuggestion({
         : PlantSpeciesSource.ai,
   });
 
+  console.info('[suggest][hydrate_external] return_created_species', {
+    latinName: species.scientificName,
+    speciesId: species.id,
+    wikipediaImageUrl,
+    candidateImageUrl,
+    speciesExistsInDb: false,
+    defaultImageUrlBefore: null,
+    defaultImageUrlAfter: species.defaultImageUrl ?? null,
+    returnedImageUrl: species.defaultImageUrl ?? candidateImageUrl ?? null,
+    source,
+  });
+
   return {
     latinName: species.scientificName,
-    imageUrl: species.defaultImageUrl,
+    imageUrl: species.defaultImageUrl ?? candidateImageUrl ?? null,
     source,
   };
 }
@@ -1269,17 +1342,32 @@ export async function suggestPlantSpecies(
     );
   }
 
-  return dedupeSuggestions(results).slice(0, 3);
+  const finalSuggestions = dedupeSuggestions(results).slice(0, 3);
+
+  console.info('[suggest] final_results', {
+    query,
+    suggestions: finalSuggestions.map((suggestion) => ({
+      latinName: suggestion.latinName,
+      imageUrl: suggestion.imageUrl,
+      source: suggestion.source,
+    })),
+  });
+
+  return finalSuggestions;
 }
 
 export async function confirmPlantSpecies({
   latinName,
   commonName,
+  imageUrl,
 }: {
   latinName: string;
   commonName?: string;
+  imageUrl?: string;
 }) {
-  const species = await getOrCreatePlantSpecies(latinName);
+  const species = await getOrCreatePlantSpecies(latinName, {
+    imageUrl,
+  });
   const trimmedCommonName = commonName?.trim();
 
   if (trimmedCommonName) {
