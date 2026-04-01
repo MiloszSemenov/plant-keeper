@@ -59,9 +59,12 @@ export function DevModePanel({
             setSummary(null);
 
             startTransition(async () => {
-              const response = await fetch(`/api/dev/reminders?dayOffset=${dayOffset}`, {
-                method: "POST"
-              });
+              const response = await fetch(
+                `/api/dev/reminders?dayOffset=${dayOffset}&forceCalendar=true&overdue=true`,
+                {
+                  method: "POST"
+                }
+              );
 
               const payload = await response
                 .json()
@@ -72,16 +75,20 @@ export function DevModePanel({
                 return;
               }
 
+              const calendarSummary = payload.calendar
+                ? ` Calendar sync: integrations ${payload.calendar.integrations}, created ${payload.calendar.created}, kept ${payload.calendar.kept}, deleted ${payload.calendar.deleted}, failed ${payload.calendar.failed}.`
+                : "";
+
               setSummary(
-                `Eligible plants ${payload.duePlants}, recipients ${payload.recipients}, sent ${payload.sent}, skipped ${payload.skipped}, failed ${payload.failed}.`
+                `Eligible plants ${payload.duePlants}, recipients ${payload.recipients}, sent ${payload.sent}, skipped ${payload.skipped}, failed ${payload.failed}.${calendarSummary}`
               );
             });
           }}
           type="button"
         >
-          {isPending ? "Testing..." : "Test reminder send"}
+          {isPending ? "Testing..." : "Test reminders + calendar"}
         </button>
-        <p className="muted">Current offset: {dayOffset} days</p>
+        <p className="muted">Current offset: {dayOffset} days. Calendar sync stays log-only in dev mode.</p>
       </div>
 
       {error ? <p className="field-error">{error}</p> : null}

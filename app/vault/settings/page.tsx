@@ -4,12 +4,17 @@ import { type VaultInviteStatus, listVaultInvitesForSettings } from "@/services/
 import { AppShell } from "@/components/app-shell";
 import { InviteForm } from "@/components/invite-form";
 import { CreateVaultForm } from "@/components/create-vault-form";
-import { EmptyState } from "@/components/empty-state";
 import { formatDate } from "@/lib/time";
 import { NotificationSettingForm } from "@/components/notification-setting-form";
 import { MemberActions } from "@/components/member-actions";
 import { ManageInviteButton } from "@/components/manage-invite-button";
 import { SpaceMembershipAction } from "@/components/space-membership-action";
+import { GoogleCalendarConnectButton } from "@/components/google-calendar-connect-button";
+import { GoogleCalendarDisconnectButton } from "@/components/google-calendar-disconnect-button";
+import {
+  getGoogleCalendarIntegration,
+  isGoogleCalendarConnected
+} from "@/services/google-calendar";
 
 function getRoleLabel(role: string) {
   return role;
@@ -58,6 +63,9 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
     vaultId: selectedVault.id
   });
   const userCanManagePlants = canManagePlants(selectedMembership.role);
+  const googleCalendarIntegration = await getGoogleCalendarIntegration(user.id);
+  const googleCalendarConnected = isGoogleCalendarConnected(googleCalendarIntegration);
+  const googleCalendarCallbackUrl = `/spaces/settings?vaultId=${selectedVault.id}`;
   const displayRole = getRoleLabel(selectedMembership.role);
   const roleLabel = displayRole.charAt(0).toUpperCase() + displayRole.slice(1);
   const roleDescription =
@@ -149,6 +157,26 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
             label="Send watering reminders for plants in this space"
             variant="switch"
           />
+        </article>
+
+        <article className="panel stack-sm">
+          <p className="eyebrow">Google Calendar</p>
+          <h2>Mirror daily watering reminders</h2>
+          <p className="muted">
+            Keep one all-day Plant Keeper reminder on your calendar whenever your email reminder
+            for the day would apply.
+          </p>
+          {googleCalendarConnected ? (
+            <div className="stack-xs">
+              <strong>Google Calendar connected</strong>
+              <GoogleCalendarDisconnectButton />
+            </div>
+          ) : (
+            <div className="stack-xs">
+              <strong>Not connected</strong>
+              <GoogleCalendarConnectButton callbackUrl={googleCalendarCallbackUrl} />
+            </div>
+          )}
         </article>
 
         <article className="panel stack-sm">

@@ -41,16 +41,24 @@ function isEmailReminderEnabled({
 export async function sendDailyWateringReminders(options?: {
   now?: Date;
   debug?: boolean;
+  forceCalendar?: boolean;
+  includeOverdue?: boolean;
 }) {
   const now = options?.now ?? new Date();
   const reminderDate = startOfUtcDay(now);
   const dueBefore = endOfUtcDay(now);
+  const includeOverdue = options?.includeOverdue ?? true;
 
   const duePlants = await prisma.plant.findMany({
     where: {
-      nextWateringAt: {
-        lte: dueBefore
-      }
+      nextWateringAt: includeOverdue
+        ? {
+            lte: dueBefore
+          }
+        : {
+            gte: reminderDate,
+            lte: dueBefore
+          }
     },
     include: {
       species: true,
@@ -73,20 +81,10 @@ export async function sendDailyWateringReminders(options?: {
     console.info("[reminders] eligible plants", {
       eligiblePlants: duePlants.length,
       reminderDate: reminderDate.toISOString(),
-      dueBefore: dueBefore.toISOString()
+      dueBefore: dueBefore.toISOString(),
+      includeOverdue
     });
   }
-
-  const calendarSummary = await syncGoogleCalendarReminders({
-    duePlants,
-    now
-  }).catch((error) => {
-    console.error("[reminders] calendar_sync_failed", {
-      error: error instanceof Error ? error.message : "unknown_error"
-    });
-
-    return null;
-  });
 
   const userIds = Array.from(
     new Set(
@@ -189,6 +187,20 @@ export async function sendDailyWateringReminders(options?: {
       notificationsDisabledSkips
     });
   }
+
+  const calendarSummary = await syncGoogleCalendarReminders({
+    reminderUserIds: Array.from(perUser.entries())
+      .filter(([, recipient]) => recipient.plants.length > 0)
+      .map(([userId]) => userId),
+    date: reminderDate,
+    forceLog: options?.forceCalendar
+  }).catch((error) => {
+    console.error("[reminders] calendar_sync_failed", {
+      error: error instanceof Error ? error.message : "unknown_error"
+    });
+
+    return null;
+  });
 
   const existingEmails = await prisma.reminderEmail.findMany({
     where: {

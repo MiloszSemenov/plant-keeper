@@ -1,13 +1,16 @@
-import { prisma } from "@/db/client";
-import { getDevModeState } from "@/lib/dev-mode";
-import { getAppUrl, requireEnv } from "@/lib/env";
-import { ApiError } from "@/lib/http";
-import { addDays, startOfUtcDay } from "@/lib/time";
+import { prisma } from '@/db/client';
+import { getDevModeState } from '@/lib/dev-mode';
+import { getAppUrl, requireEnv } from '@/lib/env';
+import { ApiError } from '@/lib/http';
+import { startOfUtcDay } from '@/lib/time';
 
-const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
-const GOOGLE_PROVIDER = "google";
-const DEFAULT_CALENDAR_ID = "primary";
-const REMINDER_EVENT_MARKER = "watering_reminder";
+const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const GOOGLE_PROVIDER = 'google';
+const DEFAULT_CALENDAR_ID = 'primary';
+const REMINDER_EVENT_MARKER = 'watering_reminder';
+const DEFAULT_REMINDER_HOUR = 8;
+const REMINDER_EVENT_DURATION_MINUTES = 5;
+const REMINDER_TIME_ZONE = 'Europe/Warsaw';
 
 type GoogleCalendarIntegrationAccount = {
   provider?: string;
@@ -17,51 +20,102 @@ type GoogleCalendarIntegrationAccount = {
   expires_at?: number | null;
 };
 
-type ReminderDuePlant = {
-  vault: {
-    memberships: Array<{
-      userId: string;
-    }>;
-  };
+type GoogleCalendarReminderEvent = {
+  id?: string;
 };
 
 function hasCalendarScope(scope: string | null) {
-  return Boolean(scope?.split(" ").includes(GOOGLE_CALENDAR_SCOPE));
+  return Boolean(scope?.split(' ').includes(GOOGLE_CALENDAR_SCOPE));
 }
 
 function formatAllDayDate(date: Date) {
   return startOfUtcDay(date).toISOString().slice(0, 10);
 }
 
+function getReminderHour() {
+  const configuredHour = process.env.REMINDER_HOUR;
+
+  if (!configuredHour) {
+    return DEFAULT_REMINDER_HOUR;
+  }
+
+  const reminderHour = Number.parseInt(configuredHour, 10);
+
+  if (
+    !Number.isInteger(reminderHour) ||
+    reminderHour < 0 ||
+    reminderHour > 23
+  ) {
+    console.warn('[google-calendar] invalid_reminder_hour', {
+      configuredHour,
+      fallbackHour: DEFAULT_REMINDER_HOUR,
+    });
+
+    return DEFAULT_REMINDER_HOUR;
+  }
+
+  return reminderHour;
+}
+
+function formatReminderDateTime(date: Date, hour: number, minute = 0) {
+  const day = formatAllDayDate(date);
+  const formattedHour = hour.toString().padStart(2, '0');
+  const formattedMinute = minute.toString().padStart(2, '0');
+
+  return `${day}T${formattedHour}:${formattedMinute}:00`;
+}
+
 function buildReminderPayload(date: Date) {
   const day = startOfUtcDay(date);
+  const reminderHour = getReminderHour();
+  const startDateTime = formatReminderDateTime(day, reminderHour);
+  const endDateTime = formatReminderDateTime(
+    day,
+    reminderHour,
+    REMINDER_EVENT_DURATION_MINUTES,
+  );
 
   return {
-    summary: "Water your plants",
+    summary: 'Water your plants',
     description: `Plant Keeper reminder\n${getAppUrl()}/dashboard`,
     start: {
-      date: formatAllDayDate(day)
+      dateTime: startDateTime,
+      timeZone: REMINDER_TIME_ZONE,
     },
     end: {
-      date: formatAllDayDate(addDays(day, 1))
+      dateTime: endDateTime,
+      timeZone: REMINDER_TIME_ZONE,
     },
     extendedProperties: {
       private: {
+        plantKeeperReminder: 'true',
         plantKeeperType: REMINDER_EVENT_MARKER,
-        plantKeeperDate: formatAllDayDate(day)
-      }
-    }
+        plantKeeperDate: formatAllDayDate(day),
+      },
+    },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        {
+          method: 'popup',
+          minutes: 0,
+        },
+      ],
+    },
   };
 }
 
 export async function syncGoogleCalendarIntegration({
   userId,
-  account
+  account,
 }: {
   userId: string;
   account: GoogleCalendarIntegrationAccount;
 }) {
-  if (account.provider !== GOOGLE_PROVIDER || !hasCalendarScope(account.scope ?? null)) {
+  if (
+    account.provider !== GOOGLE_PROVIDER ||
+    !hasCalendarScope(account.scope ?? null)
+  ) {
     return null;
   }
 
@@ -69,26 +123,26 @@ export async function syncGoogleCalendarIntegration({
     where: {
       userId_provider: {
         userId,
-        provider: GOOGLE_PROVIDER
-      }
-    }
+        provider: GOOGLE_PROVIDER,
+      },
+    },
   });
 
   return prisma.userIntegration.upsert({
     where: {
       userId_provider: {
         userId,
-        provider: GOOGLE_PROVIDER
-      }
+        provider: GOOGLE_PROVIDER,
+      },
     },
     update: {
       accessToken: account.access_token ?? existing?.accessToken ?? null,
       refreshToken: account.refresh_token ?? existing?.refreshToken ?? null,
       tokenExpiresAt:
-        typeof account.expires_at === "number"
+        typeof account.expires_at === 'number'
           ? new Date(account.expires_at * 1000)
-          : existing?.tokenExpiresAt ?? null,
-      calendarId: existing?.calendarId ?? DEFAULT_CALENDAR_ID
+          : (existing?.tokenExpiresAt ?? null),
+      calendarId: existing?.calendarId ?? DEFAULT_CALENDAR_ID,
     },
     create: {
       userId,
@@ -96,9 +150,25 @@ export async function syncGoogleCalendarIntegration({
       accessToken: account.access_token ?? null,
       refreshToken: account.refresh_token ?? null,
       tokenExpiresAt:
-        typeof account.expires_at === "number" ? new Date(account.expires_at * 1000) : null,
-      calendarId: DEFAULT_CALENDAR_ID
-    }
+        typeof account.expires_at === 'number'
+          ? new Date(account.expires_at * 1000)
+          : null,
+      calendarId: DEFAULT_CALENDAR_ID,
+    },
+  });
+}
+
+export async function getGoogleCalendarIntegration(userId: string) {
+  return prisma.userIntegration.findUnique({
+    where: {
+      userId_provider: {
+        userId,
+        provider: GOOGLE_PROVIDER,
+      },
+    },
+    select: {
+      provider: true,
+    },
   });
 }
 
@@ -107,44 +177,51 @@ async function refreshGoogleAccessToken(integration: {
   refreshToken: string | null;
 }) {
   if (!integration.refreshToken) {
-    throw new ApiError(400, "Google Calendar is not connected. Reconnect your Google account.");
+    throw new ApiError(
+      400,
+      'Google Calendar is not connected. Reconnect your Google account.',
+    );
   }
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
-      client_id: requireEnv("GOOGLE_CLIENT_ID"),
-      client_secret: requireEnv("GOOGLE_CLIENT_SECRET"),
-      grant_type: "refresh_token",
-      refresh_token: integration.refreshToken
-    })
+      client_id: requireEnv('GOOGLE_CLIENT_ID'),
+      client_secret: requireEnv('GOOGLE_CLIENT_SECRET'),
+      grant_type: 'refresh_token',
+      refresh_token: integration.refreshToken,
+    }),
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(502, `Google token refresh failed: ${text || response.statusText}`);
+    throw new ApiError(
+      502,
+      `Google token refresh failed: ${text || response.statusText}`,
+    );
   }
 
   const payload = await response.json();
 
   return prisma.userIntegration.update({
     where: {
-      id: integration.id
+      id: integration.id,
     },
     data: {
-      accessToken: typeof payload.access_token === "string" ? payload.access_token : null,
+      accessToken:
+        typeof payload.access_token === 'string' ? payload.access_token : null,
       refreshToken:
-        typeof payload.refresh_token === "string"
+        typeof payload.refresh_token === 'string'
           ? payload.refresh_token
           : integration.refreshToken,
       tokenExpiresAt:
-        typeof payload.expires_in === "number"
+        typeof payload.expires_in === 'number'
           ? new Date(Date.now() + payload.expires_in * 1000)
-          : null
-    }
+          : null,
+    },
   });
 }
 
@@ -166,7 +243,7 @@ async function getGoogleAccessToken(integration: {
   const refreshedIntegration = await refreshGoogleAccessToken(integration);
 
   if (!refreshedIntegration.accessToken) {
-    throw new ApiError(400, "Google Calendar is not connected.");
+    throw new ApiError(400, 'Google Calendar is not connected.');
   }
 
   return refreshedIntegration.accessToken;
@@ -180,17 +257,17 @@ async function googleCalendarRequest(
     tokenExpiresAt: Date | null;
   },
   path: string,
-  options?: RequestInit
+  options?: RequestInit,
 ) {
   const accessToken = await getGoogleAccessToken(integration);
 
   return fetch(`https://www.googleapis.com/calendar/v3${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
-      ...(options?.headers ?? {})
-    }
+      ...(options?.headers ?? {}),
+    },
   });
 }
 
@@ -202,33 +279,54 @@ async function listReminderEvents(
     tokenExpiresAt: Date | null;
     calendarId: string | null;
   },
-  date: Date
 ) {
-  const day = startOfUtcDay(date);
   const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
-  const params = new URLSearchParams({
-    singleEvents: "true",
-    timeMin: day.toISOString(),
-    timeMax: addDays(day, 1).toISOString(),
-    privateExtendedProperty: `plantKeeperType=${REMINDER_EVENT_MARKER}`
-  });
-  const response = await googleCalendarRequest(
-    integration,
-    `/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`
-  );
+  const events: GoogleCalendarReminderEvent[] = [];
+  let pageToken: string | undefined;
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new ApiError(502, `Google Calendar event lookup failed: ${text || response.statusText}`);
-  }
+  do {
+    const params = new URLSearchParams({
+      singleEvents: 'true',
+      maxResults: '250',
+    });
+    params.append(
+      'privateExtendedProperty',
+      `plantKeeperType=${REMINDER_EVENT_MARKER}`,
+    );
 
-  const payload = (await response.json()) as {
-    items?: Array<{
-      id?: string;
-    }>;
-  };
+    if (pageToken) {
+      params.set('pageToken', pageToken);
+    }
 
-  return Array.isArray(payload.items) ? payload.items : [];
+    const response = await googleCalendarRequest(
+      integration,
+      `/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new ApiError(
+        502,
+        `Google Calendar event lookup failed: ${text || response.statusText}`,
+      );
+    }
+
+    const payload = (await response.json()) as {
+      items?: GoogleCalendarReminderEvent[];
+      nextPageToken?: string;
+    };
+
+    if (Array.isArray(payload.items)) {
+      events.push(...payload.items);
+    }
+
+    pageToken =
+      typeof payload.nextPageToken === 'string'
+        ? payload.nextPageToken
+        : undefined;
+  } while (pageToken);
+
+  return events;
 }
 
 async function createReminderEvent(
@@ -240,24 +338,87 @@ async function createReminderEvent(
     tokenExpiresAt: Date | null;
     calendarId: string | null;
   },
-  date: Date
+  date: Date,
 ) {
   const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
   const response = await googleCalendarRequest(
     integration,
     `/calendars/${encodeURIComponent(calendarId)}/events`,
     {
-      method: "POST",
-      body: JSON.stringify(buildReminderPayload(date))
-    }
+      method: 'POST',
+      body: JSON.stringify(buildReminderPayload(date)),
+    },
   );
 
   if (!response.ok) {
     const text = await response.text();
-    throw new ApiError(502, `Google Calendar event creation failed: ${text || response.statusText}`);
+    throw new ApiError(
+      502,
+      `Google Calendar event creation failed: ${text || response.statusText}`,
+    );
   }
 
   return response.json();
+}
+
+async function updateReminderEvent(
+  integration: {
+    id: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    tokenExpiresAt: Date | null;
+    calendarId: string | null;
+  },
+  eventId: string,
+  date: Date,
+) {
+  const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
+  const response = await googleCalendarRequest(
+    integration,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(buildReminderPayload(date)),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(
+      502,
+      `Google Calendar event update failed: ${text || response.statusText}`,
+    );
+  }
+
+  return response.json();
+}
+
+async function deleteReminderEvent(
+  integration: {
+    id: string;
+    accessToken: string | null;
+    refreshToken: string | null;
+    tokenExpiresAt: Date | null;
+    calendarId: string | null;
+  },
+  eventId: string,
+) {
+  const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
+  const response = await googleCalendarRequest(
+    integration,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'DELETE',
+    },
+  );
+
+  if (!response.ok && response.status !== 404) {
+    const text = await response.text();
+    throw new ApiError(
+      502,
+      `Google Calendar event deletion failed: ${text || response.statusText}`,
+    );
+  }
 }
 
 async function deleteReminderEvents(
@@ -268,10 +429,8 @@ async function deleteReminderEvents(
     tokenExpiresAt: Date | null;
     calendarId: string | null;
   },
-  date: Date
 ) {
-  const calendarId = integration.calendarId ?? DEFAULT_CALENDAR_ID;
-  const events = await listReminderEvents(integration, date);
+  const events = await listReminderEvents(integration);
   let deletedCount = 0;
 
   for (const event of events) {
@@ -279,19 +438,7 @@ async function deleteReminderEvents(
       continue;
     }
 
-    const response = await googleCalendarRequest(
-      integration,
-      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(event.id)}`,
-      {
-        method: "DELETE"
-      }
-    );
-
-    if (!response.ok && response.status !== 404) {
-      const text = await response.text();
-      throw new ApiError(502, `Google Calendar event deletion failed: ${text || response.statusText}`);
-    }
-
+    await deleteReminderEvent(integration, event.id);
     deletedCount += 1;
   }
 
@@ -299,44 +446,87 @@ async function deleteReminderEvents(
 }
 
 export async function syncGoogleCalendarReminders({
-  duePlants,
-  now
+  reminderUserIds,
+  date,
+  forceLog,
 }: {
-  duePlants: ReminderDuePlant[];
-  now?: Date;
+  reminderUserIds: string[];
+  date?: Date;
+  forceLog?: boolean;
 }) {
-  const date = startOfUtcDay(now ?? new Date());
+  const reminderDate = startOfUtcDay(date ?? new Date());
+  const reminderDateLabel = formatAllDayDate(reminderDate);
   const devMode = getDevModeState().enabled;
   const integrations = await prisma.userIntegration.findMany({
     where: {
-      provider: GOOGLE_PROVIDER
-    }
+      provider: GOOGLE_PROVIDER,
+    },
   });
-  const dueUserIds = new Set(
-    duePlants.flatMap((plant) => plant.vault.memberships.map((membership) => membership.userId))
-  );
+  const dueUserIds = new Set(reminderUserIds);
   let created = 0;
+  let updated = 0;
   let kept = 0;
   let deleted = 0;
   let failed = 0;
 
   for (const integration of integrations) {
+    const shouldHaveReminderEvent = dueUserIds.has(integration.userId);
+
     try {
-      if (dueUserIds.has(integration.userId)) {
+      if (devMode && forceLog) {
+        console.info('[google-calendar] dev_sync', {
+          action: shouldHaveReminderEvent ? 'would_create' : 'would_delete',
+          userId: integration.userId,
+          date: reminderDateLabel,
+        });
+
+        if (shouldHaveReminderEvent) {
+          created += 1;
+        } else {
+          deleted += 1;
+        }
+
+        continue;
+      }
+
+      if (shouldHaveReminderEvent) {
         if (devMode) {
-          console.info(`DEV MODE: Would create calendar event for user ${integration.userId}`);
+          console.info('[google-calendar] dev_sync', {
+            action: 'would_create',
+            userId: integration.userId,
+            date: reminderDateLabel,
+          });
           kept += 1;
           continue;
         }
 
-        const existingEvents = await listReminderEvents(integration, date);
+        const existingEvents = await listReminderEvents(integration);
+        const eventsWithIds = existingEvents.filter(
+          (event): event is { id: string } =>
+            typeof event.id === 'string' && event.id.length > 0,
+        );
+        const [eventToUpdate, ...duplicateEvents] = eventsWithIds;
 
-        if (existingEvents.length > 0) {
-          kept += 1;
+        if (eventToUpdate) {
+          await updateReminderEvent(
+            integration,
+            eventToUpdate.id,
+            reminderDate,
+          );
+          updated += 1;
+
+          if (duplicateEvents.length > 0) {
+            for (const duplicateEvent of duplicateEvents) {
+              await deleteReminderEvent(integration, duplicateEvent.id);
+            }
+
+            deleted += 1;
+          }
+
           continue;
         }
 
-        await createReminderEvent(integration, date);
+        await createReminderEvent(integration, reminderDate);
         created += 1;
         continue;
       }
@@ -345,16 +535,16 @@ export async function syncGoogleCalendarReminders({
         continue;
       }
 
-      const deletedCount = await deleteReminderEvents(integration, date);
+      const deletedCount = await deleteReminderEvents(integration);
 
       if (deletedCount > 0) {
         deleted += 1;
       }
     } catch (error) {
       failed += 1;
-      console.error("[google-calendar] sync_failed", {
+      console.error('[google-calendar] sync_failed', {
         userId: integration.userId,
-        error: error instanceof Error ? error.message : "unknown_error"
+        error: error instanceof Error ? error.message : 'unknown_error',
       });
     }
   }
@@ -362,9 +552,10 @@ export async function syncGoogleCalendarReminders({
   return {
     integrations: integrations.length,
     created,
+    updated,
     kept,
     deleted,
-    failed
+    failed,
   };
 }
 
@@ -373,32 +564,34 @@ export async function disconnectGoogleCalendar(userId: string) {
     where: {
       userId_provider: {
         userId,
-        provider: GOOGLE_PROVIDER
-      }
-    }
+        provider: GOOGLE_PROVIDER,
+      },
+    },
   });
 
   if (!integration) {
     return {
-      disconnected: true
+      disconnected: true,
     };
   }
 
   if (!getDevModeState().enabled) {
-    await deleteReminderEvents(integration, new Date()).catch(() => null);
+    await deleteReminderEvents(integration).catch(() => null);
   }
 
   await prisma.userIntegration.delete({
     where: {
-      id: integration.id
-    }
+      id: integration.id,
+    },
   });
 
   return {
-    disconnected: true
+    disconnected: true,
   };
 }
 
-export function isGoogleCalendarConnected(integration: { provider: string } | null) {
+export function isGoogleCalendarConnected(
+  integration: { provider: string } | null,
+) {
   return integration?.provider === GOOGLE_PROVIDER;
 }
