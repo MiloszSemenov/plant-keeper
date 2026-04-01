@@ -11,7 +11,8 @@ export async function POST(request: NextRequest) {
     const payload = plantSpeciesConfirmSchema.parse(json);
     const result = await confirmPlantSpecies({
       latinName: payload.latinName,
-      commonName: payload.commonName || undefined
+      commonName: payload.commonName || undefined,
+      imageUrl: payload.imageUrl || undefined
     });
 
     return NextResponse.json(result);

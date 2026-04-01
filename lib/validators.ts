@@ -17,7 +17,8 @@ export const plantSearchQuerySchema = z.object({
 
 export const plantSpeciesConfirmSchema = z.object({
   latinName: z.string().trim().min(2).max(140),
-  commonName: z.string().trim().max(140).optional().or(z.literal(""))
+  commonName: z.string().trim().max(140).optional().or(z.literal("")),
+  imageUrl: z.string().trim().max(2000).optional().or(z.literal(""))
 });
 
 export const createVaultSchema = z.object({

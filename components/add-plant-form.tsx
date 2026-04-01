@@ -56,51 +56,84 @@ export function AddPlantForm({
   const [createPending, startCreate] = useTransition();
   const [searchPending, startSearch] = useTransition();
   const lastSearchQueryRef = useRef<string>("");
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const speciesSuggestionCacheRef = useRef(new Map<string, SpeciesSuggestion[]>());
 
   useEffect(() => {
     const trimmedQuery = speciesQuery.trim();
+    const normalizedQuery = normalizePlantLookupKey(trimmedQuery);
 
-    if (trimmedQuery.length < 3) {
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+      searchAbortControllerRef.current = null;
+    }
+
+    if (trimmedQuery.length < 3 || !normalizedQuery) {
       setSpeciesSuggestions([]);
       lastSearchQueryRef.current = "";
       return;
     }
 
-    if (trimmedQuery === lastSearchQueryRef.current) {
+    const cachedSuggestions = speciesSuggestionCacheRef.current.get(normalizedQuery);
+
+    if (cachedSuggestions) {
+      setSpeciesSuggestions(cachedSuggestions);
+      lastSearchQueryRef.current = normalizedQuery;
       return;
     }
 
-    const controller = new AbortController();
+    if (normalizedQuery === lastSearchQueryRef.current) {
+      return;
+    }
+
+    lastSearchQueryRef.current = normalizedQuery;
+
     const timeoutId = window.setTimeout(() => {
+      const controller = new AbortController();
+      searchAbortControllerRef.current = controller;
+
       startSearch(async () => {
-        const response = await fetch(
-          `/api/plant-species/suggest?q=${encodeURIComponent(trimmedQuery)}`,
-          {
-            signal: controller.signal
+        try {
+          const response = await fetch(
+            `/api/plant-species/suggest?q=${encodeURIComponent(trimmedQuery)}`,
+            {
+              signal: controller.signal
+            }
+          ).catch(() => null);
+
+          if (!response || controller.signal.aborted) {
+            return;
           }
-        ).catch(() => null);
 
-        if (!response || controller.signal.aborted) {
-          return;
-        }
+          const payload = await response.json().catch(() => []);
 
-        const payload = await response.json().catch(() => []);
-
-        if (!response.ok) {
-          if (!controller.signal.aborted) {
-            setError(payload.error ?? "Unable to search plant species");
+          if (!response.ok) {
+            if (!controller.signal.aborted) {
+              lastSearchQueryRef.current = "";
+              setError(payload.error ?? "Unable to search plant species");
+            }
+            return;
           }
-          return;
-        }
 
-        lastSearchQueryRef.current = trimmedQuery;
-        setSpeciesSuggestions(Array.isArray(payload) ? payload : []);
+          const suggestions = Array.isArray(payload) ? payload : [];
+          speciesSuggestionCacheRef.current.set(normalizedQuery, suggestions);
+          lastSearchQueryRef.current = normalizedQuery;
+          setSpeciesSuggestions(suggestions);
+        } finally {
+          if (searchAbortControllerRef.current === controller) {
+            searchAbortControllerRef.current = null;
+          }
+        }
       });
     }, 450);
 
     return () => {
       window.clearTimeout(timeoutId);
-      controller.abort();
+
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+        searchAbortControllerRef.current = null;
+      }
     };
   }, [speciesQuery]);
 
@@ -179,6 +212,10 @@ export function AddPlantForm({
       : trimmedQuery;
   }
 
+  function getSelectedImageUrl() {
+    return selectedSpeciesSuggestion?.imageUrl ?? selectedPhotoSuggestion?.imageUrl ?? undefined;
+  }
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -198,7 +235,8 @@ export function AddPlantForm({
         },
         body: JSON.stringify({
           latinName: selectedLatinName,
-          commonName: getConfirmedCommonName(selectedLatinName)
+          commonName: getConfirmedCommonName(selectedLatinName),
+          imageUrl: getSelectedImageUrl()
         })
       });
 
