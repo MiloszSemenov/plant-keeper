@@ -11,6 +11,7 @@ import { type Prisma } from '@prisma/client';
 import { prisma } from '@/db/client';
 import { extensionFromMime } from '@/lib/base64';
 import { ApiError } from '@/lib/http';
+import { resolvePlantImage } from '@/lib/plant-image';
 import {
   isSupportedPlantImageMimeType,
   MAX_PLANT_IMAGE_BYTES,
@@ -26,12 +27,14 @@ import {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const SPECIES_IMAGE_DIRECTORY = path.join(process.cwd(), 'public', 'species');
+const speciesImageDownloads = new Map<string, Promise<string | null>>();
 
 const plantSpeciesSelect = {
   id: true,
   scientificName: true,
   normalizedLookupKey: true,
   defaultImageUrl: true,
+  wikipediaImageUrl: true,
   wateringIntervalDays: true,
   fertilizerIntervalDays: true,
   lightRequirement: true,
@@ -123,14 +126,13 @@ function getDisplayPlantImageUrl(plant: {
     defaultImageUrl: string | null;
   };
 }) {
-  const speciesImageUrl = isLocalPublicImageUrl(plant.species.defaultImageUrl)
-    ? plant.species.defaultImageUrl
-    : null;
-  const plantImageUrl = isLocalPublicImageUrl(plant.imageUrl)
-    ? plant.imageUrl
-    : null;
-
-  return speciesImageUrl ?? plantImageUrl;
+  return resolvePlantImage({
+    context: 'plant',
+    plantImageUrl: isLocalPublicImageUrl(plant.imageUrl) ? plant.imageUrl : null,
+    speciesDefaultImageUrl: isLocalPublicImageUrl(plant.species.defaultImageUrl)
+      ? plant.species.defaultImageUrl
+      : null,
+  });
 }
 
 function isLocalPublicImageUrl(imageUrl: string | null | undefined) {
@@ -142,6 +144,28 @@ export function isStoredSpeciesImageUrl(imageUrl: string | null | undefined) {
     typeof imageUrl === 'string' &&
     (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('/species/'))
   );
+}
+
+function isRemoteImageUrl(imageUrl: string | null | undefined) {
+  return typeof imageUrl === 'string' && imageUrl.trim().length > 0 && !imageUrl.startsWith('/');
+}
+
+function getSpeciesWikipediaFallbackUrl(species: {
+  defaultImageUrl?: string | null;
+  wikipediaImageUrl?: string | null;
+}) {
+  if (isRemoteImageUrl(species.wikipediaImageUrl)) {
+    return species.wikipediaImageUrl;
+  }
+
+  return isRemoteImageUrl(species.defaultImageUrl) &&
+    !isStoredSpeciesImageUrl(species.defaultImageUrl)
+    ? species.defaultImageUrl
+    : null;
+}
+
+function getSpeciesImageDownloadKey(speciesName: string) {
+  return normalizePlantLookupKey(speciesName) || speciesName.trim().toLowerCase();
 }
 
 function getPublicAssetPath(relativeUrl: string) {
@@ -371,6 +395,7 @@ export async function persistSpeciesDefaultImage(
     },
     select: {
       defaultImageUrl: true,
+      wikipediaImageUrl: true,
     },
   });
 
@@ -394,7 +419,8 @@ export async function persistSpeciesDefaultImage(
     return species.defaultImageUrl;
   }
 
-  const sourceImageUrl = imageUrl ?? species.defaultImageUrl;
+  const sourceImageUrl =
+    imageUrl ?? getSpeciesWikipediaFallbackUrl(species) ?? species.defaultImageUrl;
 
   if (!sourceImageUrl) {
     console.info('[species] persist_default_image_skip', {
@@ -421,6 +447,9 @@ export async function persistSpeciesDefaultImage(
     const storedImageUrl = isLocalPublicImageUrl(sourceImageUrl)
       ? sourceImageUrl
       : await saveRemotePlantImage(sourceImageUrl);
+    const wikipediaImageUrl = isRemoteImageUrl(sourceImageUrl)
+      ? sourceImageUrl
+      : getSpeciesWikipediaFallbackUrl(species);
 
     await prisma.plantSpecies.update({
       where: {
@@ -428,6 +457,7 @@ export async function persistSpeciesDefaultImage(
       },
       data: {
         defaultImageUrl: storedImageUrl,
+        wikipediaImageUrl,
       },
     });
 
@@ -448,6 +478,141 @@ export async function persistSpeciesDefaultImage(
   }
 }
 
+export async function persistSpeciesWikipediaImage(
+  speciesId: string,
+  wikipediaImageUrl: string | null,
+) {
+  if (typeof wikipediaImageUrl !== 'string') {
+    return null;
+  }
+
+  const normalizedWikipediaImageUrl = wikipediaImageUrl.trim();
+
+  if (
+    normalizedWikipediaImageUrl.length === 0 ||
+    normalizedWikipediaImageUrl.startsWith('/')
+  ) {
+    return null;
+  }
+  const species = await prisma.plantSpecies.findUnique({
+    where: {
+      id: speciesId,
+    },
+    select: {
+      wikipediaImageUrl: true,
+    },
+  });
+
+  if (!species) {
+    return null;
+  }
+
+  if (species.wikipediaImageUrl === normalizedWikipediaImageUrl) {
+    return species.wikipediaImageUrl;
+  }
+
+  await prisma.plantSpecies.update({
+    where: {
+      id: speciesId,
+    },
+    data: {
+      wikipediaImageUrl: normalizedWikipediaImageUrl,
+    },
+  });
+
+  return normalizedWikipediaImageUrl;
+}
+
+export async function downloadAndSaveSpeciesImage(
+  speciesName: string,
+  wikipediaImageUrl: string,
+) {
+  const downloadKey = getSpeciesImageDownloadKey(speciesName);
+  const existingTask = speciesImageDownloads.get(downloadKey);
+
+  if (existingTask) {
+    return existingTask;
+  }
+
+  const task = (async () => {
+    const normalizedLookupKey = normalizePlantLookupKey(speciesName);
+
+    if (!normalizedLookupKey) {
+      return null;
+    }
+
+    const species = await prisma.plantSpecies.findUnique({
+      where: {
+        normalizedLookupKey,
+      },
+      select: {
+        id: true,
+        defaultImageUrl: true,
+        wikipediaImageUrl: true,
+      },
+    });
+
+    if (!species) {
+      return null;
+    }
+
+    if (isStoredSpeciesImageUrl(species.defaultImageUrl)) {
+      return species.defaultImageUrl;
+    }
+
+    const sourceImageUrl =
+      wikipediaImageUrl ?? getSpeciesWikipediaFallbackUrl(species);
+
+    if (!sourceImageUrl) {
+      return null;
+    }
+
+    const persistedWikipediaImageUrl = await persistSpeciesWikipediaImage(
+      species.id,
+      sourceImageUrl,
+    );
+
+    return persistSpeciesDefaultImage(
+      species.id,
+      persistedWikipediaImageUrl ?? sourceImageUrl,
+    );
+  })().finally(() => {
+    speciesImageDownloads.delete(downloadKey);
+  });
+
+  speciesImageDownloads.set(downloadKey, task);
+  return task;
+}
+
+export function triggerSpeciesImageDownload(
+  speciesName: string,
+  wikipediaImageUrl: string | null | undefined,
+) {
+  if (typeof wikipediaImageUrl !== 'string') {
+    return;
+  }
+
+  const normalizedWikipediaImageUrl = wikipediaImageUrl.trim();
+
+  if (
+    normalizedWikipediaImageUrl.length === 0 ||
+    normalizedWikipediaImageUrl.startsWith('/')
+  ) {
+    return;
+  }
+
+  void downloadAndSaveSpeciesImage(
+    speciesName,
+    normalizedWikipediaImageUrl,
+  ).catch((error) => {
+    console.error('[species] background_download_failed', {
+      speciesName,
+      wikipediaImageUrl: normalizedWikipediaImageUrl,
+      error: error instanceof Error ? error.message : 'unknown_error',
+    });
+  });
+}
+
 export async function ensureSpeciesDefaultImage(
   speciesId: string,
   imageUrl?: string | null,
@@ -460,6 +625,7 @@ export async function ensureSpeciesDefaultImage(
       id: true,
       scientificName: true,
       defaultImageUrl: true,
+      wikipediaImageUrl: true,
     },
   });
 
@@ -484,11 +650,8 @@ export async function ensureSpeciesDefaultImage(
     return species.defaultImageUrl;
   }
 
-  const existingImageUrl =
-    species.defaultImageUrl && !isStoredSpeciesImageUrl(species.defaultImageUrl)
-      ? species.defaultImageUrl
-      : null;
-  const preferredImageUrl = imageUrl ?? existingImageUrl;
+  let preferredImageUrl =
+    imageUrl ?? getSpeciesWikipediaFallbackUrl(species);
 
   if (preferredImageUrl) {
     console.info('[species] ensure_default_image_persist', {
@@ -498,10 +661,12 @@ export async function ensureSpeciesDefaultImage(
       reason: imageUrl ? 'incoming_image_url' : 'existing_default_image_url',
     });
 
-    const storedImageUrl = await persistSpeciesDefaultImage(
-      species.id,
-      preferredImageUrl,
-    );
+    const storedImageUrl = isLocalPublicImageUrl(preferredImageUrl)
+      ? await persistSpeciesDefaultImage(species.id, preferredImageUrl)
+      : await downloadAndSaveSpeciesImage(
+          species.scientificName,
+          preferredImageUrl,
+        );
 
     console.info('[species] ensure_default_image_result', {
       speciesId,
@@ -524,10 +689,16 @@ export async function ensureSpeciesDefaultImage(
     downloadTriggered: Boolean(candidateImageUrl),
   });
 
-  const storedImageUrl = await persistSpeciesDefaultImage(
-    species.id,
-    candidateImageUrl,
-  );
+  if (candidateImageUrl) {
+    await persistSpeciesWikipediaImage(species.id, candidateImageUrl);
+  }
+
+  const storedImageUrl = candidateImageUrl
+    ? await downloadAndSaveSpeciesImage(
+        species.scientificName,
+        candidateImageUrl,
+      )
+    : null;
 
   console.info('[species] ensure_default_image_result', {
     speciesId,

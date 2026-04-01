@@ -1,6 +1,7 @@
 import { ApiError } from "@/lib/http";
 import { normalizeBase64Image } from "@/lib/base64";
 import { requireEnv } from "@/lib/env";
+import { resolvePlantImage } from "@/lib/plant-image";
 
 type PlantSuggestion = {
   species: string;
@@ -91,13 +92,17 @@ function mapSuggestion(suggestion: Record<string, unknown>): PlantSuggestion {
       extractStringValue(details?.url) ??
       extractStringValue(suggestion.url) ??
       extractStringValue((suggestion as { details?: { url?: string } }).details?.url),
-    imageUrl:
-      extractImageUrl(details?.wiki_image) ??
-      extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
-      extractImageUrl((suggestion as { image?: unknown }).image) ??
-      extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
-      extractImageUrl((suggestion as { similar_images?: unknown }).similar_images) ??
-      null
+    imageUrl: resolvePlantImage({
+      context: "identify",
+      speciesDefaultImageUrl: null,
+      wikipediaImageUrl:
+        extractImageUrl(details?.wiki_image) ??
+        extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+        extractImageUrl((suggestion as { image?: unknown }).image) ??
+        extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+        extractImageUrl((suggestion as { similar_images?: unknown }).similar_images) ??
+        null
+    })
   };
 }
 
@@ -169,11 +174,15 @@ async function getPlantDetails(accessToken: string) {
           ? payload.description.value
           : null,
     url: extractStringValue(payload.url),
-    imageUrl:
-      extractImageUrl(payload.wiki_image) ??
-      extractImageUrl(payload.image) ??
-      extractImageUrl(payload.image_url) ??
-      null,
+    imageUrl: resolvePlantImage({
+      context: "identify",
+      speciesDefaultImageUrl: null,
+      wikipediaImageUrl:
+        extractImageUrl(payload.wiki_image) ??
+        extractImageUrl(payload.image) ??
+        extractImageUrl(payload.image_url) ??
+        null
+    }),
     scientificName:
       extractStringValue(payload.scientific_name) ??
       extractStringValue(payload.name) ??
@@ -220,11 +229,15 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
           commonNames: [],
           description: null,
           url: null,
-          imageUrl:
-            extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
-            extractImageUrl((suggestion as { image?: unknown }).image) ??
-            extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
-            null
+          imageUrl: resolvePlantImage({
+            context: "identify",
+            speciesDefaultImageUrl: null,
+            wikipediaImageUrl:
+              extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+              extractImageUrl((suggestion as { image?: unknown }).image) ??
+              extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+              null
+          })
         } satisfies PlantSuggestion;
       }
 
@@ -237,12 +250,15 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
           commonNames: details.commonNames,
           description: details.description,
           url: details.url,
-          imageUrl:
-            details.imageUrl ??
-            extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
-            extractImageUrl((suggestion as { image?: unknown }).image) ??
-            extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
-            null
+          imageUrl: resolvePlantImage({
+            context: "identify",
+            speciesDefaultImageUrl: details.imageUrl,
+            wikipediaImageUrl:
+              extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+              extractImageUrl((suggestion as { image?: unknown }).image) ??
+              extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+              null
+          })
         } satisfies PlantSuggestion;
       } catch {
         return {
@@ -251,11 +267,15 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
           commonNames: [],
           description: null,
           url: null,
-          imageUrl:
-            extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
-            extractImageUrl((suggestion as { image?: unknown }).image) ??
-            extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
-            null
+          imageUrl: resolvePlantImage({
+            context: "identify",
+            speciesDefaultImageUrl: null,
+            wikipediaImageUrl:
+              extractImageUrl((suggestion as { wiki_image?: unknown }).wiki_image) ??
+              extractImageUrl((suggestion as { image?: unknown }).image) ??
+              extractImageUrl((suggestion as { image_url?: unknown }).image_url) ??
+              null
+          })
         } satisfies PlantSuggestion;
       }
     })
