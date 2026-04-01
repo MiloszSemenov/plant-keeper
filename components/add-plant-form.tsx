@@ -29,8 +29,8 @@ type PhotoSuggestion = {
 
 type SpeciesSuggestion = {
   latinName: string;
+  commonName?: string;
   imageUrl: string | null;
-  source: "database" | "alias" | "plant_id" | "ai";
 };
 
 export function AddPlantForm({
@@ -410,7 +410,7 @@ export function AddPlantForm({
               return (
                 <button
                   className={isActive ? "suggestion-card active" : "suggestion-card"}
-                  key={`${suggestion.source}:${suggestion.latinName}`}
+                  key={suggestion.latinName}
                   onClick={() => {
                     setSelectedSpeciesSuggestion(suggestion);
                     setSelectedPhotoSuggestion(null);

@@ -12,7 +12,13 @@ export async function GET(request: NextRequest) {
     });
     const suggestions = await suggestPlantSpecies(query.q);
 
-    return NextResponse.json(suggestions);
+    return NextResponse.json(
+      suggestions.map((suggestion) => ({
+        latinName: suggestion.latinName,
+        ...(suggestion.commonName ? { commonName: suggestion.commonName } : {}),
+        imageUrl: suggestion.imageUrl
+      }))
+    );
   } catch (error) {
     return toErrorResponse(error);
   }

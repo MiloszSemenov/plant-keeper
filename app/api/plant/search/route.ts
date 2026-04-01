@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
         .filter((match) => match.source === "plant_id" || match.source === "ai")
         .map((match) => ({
           species: match.latinName,
-          commonNames: [],
+          commonNames: match.commonName ? [match.commonName] : [],
           description: null,
           url: null,
           imageUrl: match.imageUrl
