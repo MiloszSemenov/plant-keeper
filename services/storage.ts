@@ -27,6 +27,9 @@ export async function savePlantImage(image: string) {
 }
 
 export async function saveRemotePlantImage(imageUrl: string) {
+  console.info("[storage] remote_image_download_start", {
+    imageUrl,
+  });
   const response = await fetch(imageUrl);
 
   if (!response.ok) {
@@ -34,6 +37,11 @@ export async function saveRemotePlantImage(imageUrl: string) {
   }
 
   const contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+
+  console.info("[storage] remote_image_download_response", {
+    imageUrl,
+    contentType: contentType ?? null,
+  });
 
   if (!contentType || !isSupportedPlantImageMimeType(contentType)) {
     throw new ApiError(400, "Unsupported plant image format");
@@ -46,5 +54,19 @@ export async function saveRemotePlantImage(imageUrl: string) {
     throw new ApiError(400, "Image must be smaller than 5 MB");
   }
 
-  return writePlantImageFile(buffer, contentType);
+  const relativePath = await writePlantImageFile(buffer, contentType);
+  const outputPath = path.join(
+    process.cwd(),
+    "public",
+    ...relativePath.replace(/^\/+/, "").split("/"),
+  );
+
+  console.info("[storage] remote_image_saved", {
+    imageUrl,
+    contentType,
+    outputPath,
+    relativePath,
+  });
+
+  return relativePath;
 }
