@@ -33,6 +33,8 @@ type SpeciesSuggestion = {
   imageUrl: string | null;
 };
 
+type SpeciesSource = "manual" | "photo" | "suggestion";
+
 export function AddPlantForm({
   vaults,
   initialVaultId
@@ -44,6 +46,7 @@ export function AddPlantForm({
   const [vaultId, setVaultId] = useState(initialVaultId);
   const [nickname, setNickname] = useState("");
   const [speciesQuery, setSpeciesQuery] = useState("");
+  const [speciesSource, setSpeciesSource] = useState<SpeciesSource>("manual");
   const [image, setImage] = useState<string | undefined>();
   const [imageName, setImageName] = useState<string | null>(null);
   const [photoSuggestions, setPhotoSuggestions] = useState<PhotoSuggestion[]>([]);
@@ -66,6 +69,10 @@ export function AddPlantForm({
     if (searchAbortControllerRef.current) {
       searchAbortControllerRef.current.abort();
       searchAbortControllerRef.current = null;
+    }
+
+    if (speciesSource !== "manual") {
+      return;
     }
 
     if (trimmedQuery.length < 3 || !normalizedQuery) {
@@ -135,7 +142,7 @@ export function AddPlantForm({
         searchAbortControllerRef.current = null;
       }
     };
-  }, [speciesQuery]);
+  }, [speciesQuery, speciesSource]);
 
   async function onImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -192,6 +199,9 @@ export function AddPlantForm({
       setSelectedPhotoSuggestion(null);
       if (payload.suggestions?.[0]?.species) {
         setSpeciesQuery(payload.suggestions[0].species);
+        setSpeciesSource("photo");
+        setSpeciesSuggestions([]);
+        lastSearchQueryRef.current = "";
       }
     });
   }
@@ -360,6 +370,9 @@ export function AddPlantForm({
                     setSelectedPhotoSuggestion(suggestion);
                     setSelectedSpeciesSuggestion(null);
                     setSpeciesQuery(suggestion.species);
+                    setSpeciesSource("suggestion");
+                    setSpeciesSuggestions([]);
+                    lastSearchQueryRef.current = "";
                     setError(null);
                   }}
                   type="button"
@@ -386,6 +399,7 @@ export function AddPlantForm({
         <input
           onChange={(event) => {
             setSpeciesQuery(event.target.value);
+            setSpeciesSource("manual");
             setSelectedSpeciesSuggestion(null);
             setSelectedPhotoSuggestion(null);
             setError(null);
@@ -414,6 +428,8 @@ export function AddPlantForm({
                   onClick={() => {
                     setSelectedSpeciesSuggestion(suggestion);
                     setSelectedPhotoSuggestion(null);
+                    setSpeciesQuery(suggestion.commonName ?? suggestion.latinName);
+                    setSpeciesSource("suggestion");
                     setError(null);
                   }}
                   type="button"
@@ -432,7 +448,10 @@ export function AddPlantForm({
         </div>
       ) : null}
 
-      {speciesQuery.trim().length >= 3 && !searchPending && speciesSuggestions.length === 0 ? (
+      {speciesSource === "manual" &&
+      speciesQuery.trim().length >= 3 &&
+      !searchPending &&
+      speciesSuggestions.length === 0 ? (
         <p className="muted">No species suggestions yet. Try a more specific plant name.</p>
       ) : null}
 
