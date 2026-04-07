@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 function buildDashboardHref(vaultId: string, dayOffset: number) {
   return `/dashboard?vaultId=${vaultId}&devMode=true&dayOffset=${dayOffset}`;
@@ -19,7 +22,7 @@ export function DevModePanel({
   const [isPending, startTransition] = useTransition();
 
   return (
-    <section className="panel stack-sm">
+    <Card className="stack-sm" tone="soft">
       <div>
         <p className="eyebrow">Dev mode</p>
         <h2>Simulate plant states</h2>
@@ -38,7 +41,7 @@ export function DevModePanel({
           { label: "In 7 days", value: 7 }
         ].map((option) => (
           <Link
-            className={option.value === dayOffset ? "dev-chip active" : "dev-chip"}
+            className={cn("dev-chip", option.value === dayOffset && "active")}
             href={buildDashboardHref(vaultId, option.value)}
             key={option.value}
           >
@@ -51,8 +54,7 @@ export function DevModePanel({
       </div>
 
       <div className="inline-actions">
-        <button
-          className="button button-secondary"
+        <Button
           disabled={isPending}
           onClick={() => {
             setError(null);
@@ -85,14 +87,15 @@ export function DevModePanel({
             });
           }}
           type="button"
+          variant="secondary"
         >
           {isPending ? "Testing..." : "Test reminders + calendar"}
-        </button>
+        </Button>
         <p className="muted">Current offset: {dayOffset} days. Calendar sync stays log-only in dev mode.</p>
       </div>
 
       {error ? <p className="field-error">{error}</p> : null}
       {summary ? <p className="field-success">{summary}</p> : null}
-    </section>
+    </Card>
   );
 }

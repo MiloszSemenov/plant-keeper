@@ -2,6 +2,12 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  buttonClassName,
+  type ButtonSize,
+  type ButtonVariant
+} from "@/components/ui/button";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
 type DashboardWateringAction = {
@@ -15,19 +21,40 @@ export function MarkWateredButton({
   plantId,
   className,
   label,
-  dashboardAction
+  dashboardAction,
+  icon,
+  iconOnly = false,
+  size = "md",
+  variant = "primary"
 }: {
   plantId?: string;
   className?: string;
   label?: string;
   dashboardAction?: DashboardWateringAction;
+  icon?: IconName;
+  iconOnly?: boolean;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const buttonLabel =
+    label ?? (dashboardAction ? "Mark all watered" : "Mark watered");
+  const pendingLabel = isPending ? "Updating..." : buttonLabel;
 
   return (
     <button
-      className={cn("button button-primary", className)}
+      aria-label={iconOnly ? pendingLabel : undefined}
+      className={cn(
+        buttonClassName({
+          className,
+          iconOnly,
+          size,
+          variant
+        }),
+        "button",
+        `button-${variant}`
+      )}
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {
@@ -62,7 +89,8 @@ export function MarkWateredButton({
       }}
       type="button"
     >
-      {isPending ? "Updating..." : label ?? (dashboardAction ? "Mark all watered" : "Mark watered")}
+      {icon ? <Icon className="ui-button__icon" name={icon} /> : null}
+      {iconOnly ? <span className="sr-only">{pendingLabel}</span> : pendingLabel}
     </button>
   );
 }

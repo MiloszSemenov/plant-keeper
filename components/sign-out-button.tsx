@@ -2,14 +2,35 @@
 
 import { useTransition } from "react";
 import { signOut } from "next-auth/react";
+import {
+  buttonClassName,
+  type ButtonSize,
+  type ButtonVariant
+} from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function SignOutButton({ className }: { className?: string }) {
+export function SignOutButton({
+  className,
+  size = "sm",
+  variant = "subtle"
+}: {
+  className?: string;
+  size?: ButtonSize;
+  variant?: ButtonVariant;
+}) {
   const [isPending, startTransition] = useTransition();
 
   return (
     <button
-      className={cn("button button-ghost", className)}
+      className={cn(
+        buttonClassName({
+          className,
+          size,
+          variant
+        }),
+        "button",
+        `button-${variant}`
+      )}
       disabled={isPending}
       onClick={() => {
         startTransition(() => {

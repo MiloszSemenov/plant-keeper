@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import type { CSSProperties } from "react";
+import { Newsreader, Plus_Jakarta_Sans } from "next/font/google";
+import { themeCssVariables } from "@/lib/design-tokens";
 import "./globals.css";
 
-const fraunces = Fraunces({
+const newsreader = Newsreader({
   subsets: ["latin"],
   variable: "--font-display"
 });
 
-const manrope = Manrope({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-body"
 });
@@ -20,7 +22,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${fraunces.variable} ${manrope.variable}`}>{children}</body>
+      <body
+        className={`${newsreader.variable} ${plusJakartaSans.variable}`}
+        style={themeCssVariables as CSSProperties}
+      >
+        {children}
+      </body>
     </html>
   );
 }

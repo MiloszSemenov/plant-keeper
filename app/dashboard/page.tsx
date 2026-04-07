@@ -3,6 +3,9 @@ import { requireUserVault } from "@/lib/auth-helpers";
 import { canManagePlants, getVaultActivity } from "@/services/vaults";
 import { getDashboard } from "@/services/plants";
 import { AppShell } from "@/components/app-shell";
+import { Badge } from "@/components/ui/badge";
+import { buttonClassName } from "@/components/ui/button";
+import { Section } from "@/components/ui/section";
 import { DevModePanel } from "@/components/dev-mode-panel";
 import { MarkWateredButton } from "@/components/mark-watered-button";
 import { getDevModeState } from "@/lib/dev-mode";
@@ -39,7 +42,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <AppShell
       actions={
         userCanManagePlants ? (
-          <Link className="button button-primary" href={`/add-plant?vaultId=${selectedMembership.vault.id}`}>
+          <Link
+            className={buttonClassName({
+              size: "sm",
+              variant: "primary"
+            })}
+            href={`/add-plant?vaultId=${selectedMembership.vault.id}`}
+          >
             Add plant
           </Link>
         ) : undefined
@@ -49,143 +58,147 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       currentVaultId={selectedMembership.vault.id}
       description="See what needs water first, what is coming up next, and which space is currently in focus."
       title={selectedMembership.vault.name}
+      userImageUrl={user.image}
       userName={user.name}
       vaults={vaults}
+      sidebarContent={
+        <section className="activity-rail">
+          <p className="sidebar-label">Recent logs</p>
+          {activity.length > 0 ? (
+            <div className="activity-timeline">
+              {activity.slice(0, 4).map((entry, index) => (
+                <div className={`activity-item activity-item--${index % 3}`} key={entry.id}>
+                  <p>{entry.description}</p>
+                  <span>{formatTimeAgo(entry.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No recent activity yet.</p>
+          )}
+        </section>
+      }
     >
       {devMode.enabled ? (
         <DevModePanel dayOffset={devMode.dayOffset} vaultId={selectedMembership.vault.id} />
       ) : null}
 
-      <section className="dashboard-summary">
-        <article className="panel stat-panel">
-          <span>Overdue</span>
-          <strong>{dashboard.overdue.length}</strong>
-        </article>
-        <article className="panel stat-panel">
-          <span>Today</span>
-          <strong>{dashboard.today.length}</strong>
-        </article>
-        <article className="panel stat-panel">
-          <span>Upcoming</span>
-          <strong>{dashboard.upcoming.length}</strong>
-        </article>
-      </section>
-
-      <section className="dashboard-columns">
-        <div className="stack-md">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Needs attention</p>
-              <h2>Overdue</h2>
-            </div>
-            {dashboard.overdue.length > 0 ? (
-              <MarkWateredButton
-                dashboardAction={{
-                  vaultId: selectedMembership.vault.id,
-                  section: "overdue",
-                  devMode: devMode.enabled,
-                  dayOffset: devMode.dayOffset
-                }}
-                label="Mark all watered"
-              />
-            ) : null}
-          </div>
-          {dashboard.overdue.length > 0 ? (
-            dashboard.overdue.map((plant) => (
-              <PlantCard key={plant.id} plant={{ ...plant, now: devMode.now }} />
-            ))
-          ) : (
-            <EmptyState
-              title="Nothing is overdue"
-              description="Your space is caught up. That&apos;s a good place to be."
+      <Section
+        action={
+          dashboard.overdue.length > 0 ? (
+            <MarkWateredButton
+              dashboardAction={{
+                vaultId: selectedMembership.vault.id,
+                section: "overdue",
+                devMode: devMode.enabled,
+                dayOffset: devMode.dayOffset
+              }}
+              icon="water"
+              label="Water all"
+              variant="secondary"
             />
-          )}
-        </div>
-
-        <div className="stack-md">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Right now</p>
-              <h2>Today</h2>
-            </div>
-            {dashboard.today.length > 0 ? (
-              <MarkWateredButton
-                dashboardAction={{
-                  vaultId: selectedMembership.vault.id,
-                  section: "today",
-                  devMode: devMode.enabled,
-                  dayOffset: devMode.dayOffset
-                }}
-                label="Mark all watered"
-              />
-            ) : null}
-          </div>
-          {dashboard.today.length > 0 ? (
-            dashboard.today.map((plant) => (
-              <PlantCard key={plant.id} plant={{ ...plant, now: devMode.now }} />
-            ))
+          ) : null
+        }
+        badge={
+          dashboard.overdue.length > 0 ? (
+            <Badge tone="danger" uppercase>
+              Action required
+            </Badge>
           ) : (
-            <EmptyState
-              title="Today looks clear"
-              description="No plants are due today in this space."
-            />
-          )}
-        </div>
-
-        <div className="stack-md">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Coming up</p>
-              <h2>Upcoming</h2>
-            </div>
-            {dashboard.upcoming.length > 0 ? (
-              <MarkWateredButton
-                dashboardAction={{
-                  vaultId: selectedMembership.vault.id,
-                  section: "upcoming",
-                  devMode: devMode.enabled,
-                  dayOffset: devMode.dayOffset
-                }}
-                label="Mark all watered"
-              />
-            ) : null}
-          </div>
-          {dashboard.upcoming.length > 0 ? (
-            dashboard.upcoming.map((plant) => (
-              <PlantCard key={plant.id} plant={{ ...plant, now: devMode.now }} />
-            ))
-          ) : (
-            <EmptyState
-              title="No upcoming watering tasks"
-              description="Add a plant and Plant Keeper will schedule the next watering date."
-            />
-          )}
-        </div>
-      </section>
-
-      <section className="panel stack-sm">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Recent activity</p>
-            <h2>What happened in this space</h2>
-          </div>
-        </div>
-        {activity.length > 0 ? (
-          <div className="stack-xs">
-            {activity.map((entry) => (
-              <div className="history-item" key={entry.id}>
-                <span>{entry.description}</span>
-                <strong>{formatTimeAgo(entry.createdAt)}</strong>
-              </div>
-            ))}
-          </div>
+            <Badge tone="success" uppercase>
+              All clear
+            </Badge>
+          )
+        }
+        eyebrow="Needs attention"
+        title="Overdue"
+      >
+        {dashboard.overdue.length > 0 ? (
+          dashboard.overdue.map((plant) => (
+            <PlantCard key={plant.id} plant={{ ...plant, now: devMode.now }} />
+          ))
         ) : (
           <EmptyState
-            title="No recent activity yet"
-            description="Add a plant, water one, or invite someone to start the activity feed."
+            description="Your space is caught up. That&apos;s a good place to be."
+            title="Nothing is overdue"
           />
         )}
-      </section>
+      </Section>
+
+      <Section
+        action={
+          dashboard.today.length > 0 ? (
+            <MarkWateredButton
+              dashboardAction={{
+                vaultId: selectedMembership.vault.id,
+                section: "today",
+                devMode: devMode.enabled,
+                dayOffset: devMode.dayOffset
+              }}
+              icon="water"
+              label="Water all"
+              variant="secondary"
+            />
+          ) : null
+        }
+        badge={
+          <Badge tone={dashboard.today.length > 0 ? "warning" : "neutral"} uppercase>
+            {dashboard.today.length > 0 ? `${dashboard.today.length} due today` : "Nothing due"}
+          </Badge>
+        }
+        eyebrow="Right now"
+        title="Today"
+      >
+        {dashboard.today.length > 0 ? (
+          dashboard.today.map((plant) => (
+            <PlantCard key={plant.id} plant={{ ...plant, now: devMode.now }} />
+          ))
+        ) : (
+          <EmptyState
+            description="No plants are due today in this space."
+            title="Today looks clear"
+          />
+        )}
+      </Section>
+
+      <Section
+        action={
+          dashboard.upcoming.length > 0 ? (
+            <MarkWateredButton
+              dashboardAction={{
+                vaultId: selectedMembership.vault.id,
+                section: "upcoming",
+                devMode: devMode.enabled,
+                dayOffset: devMode.dayOffset
+              }}
+              icon="water"
+              label="Water all"
+              variant="secondary"
+            />
+          ) : null
+        }
+        badge={
+          <Badge tone={dashboard.upcoming.length > 0 ? "info" : "neutral"} uppercase>
+            {dashboard.upcoming.length > 0
+              ? `${dashboard.upcoming.length} scheduled`
+              : "Nothing scheduled"}
+          </Badge>
+        }
+        eyebrow="Coming up"
+        subdued
+        title="Upcoming"
+      >
+        {dashboard.upcoming.length > 0 ? (
+          dashboard.upcoming.map((plant) => (
+            <PlantCard key={plant.id} plant={{ ...plant, now: devMode.now }} />
+          ))
+        ) : (
+          <EmptyState
+            description="Add a plant and Plant Keeper will schedule the next watering date."
+            title="No upcoming watering tasks"
+          />
+        )}
+      </Section>
     </AppShell>
   );
 }
