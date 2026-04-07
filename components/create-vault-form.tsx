@@ -2,6 +2,7 @@
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function CreateVaultForm() {
   const router = useRouter();
@@ -47,7 +48,13 @@ export function CreateVaultForm() {
         />
       </label>
       {error ? <p className="field-error">{error}</p> : null}
-      <button className="button button-secondary" disabled={isPending} type="submit">
+      <button
+        className={buttonClassName({
+          variant: "secondary"
+        })}
+        disabled={isPending}
+        type="submit"
+      >
         {isPending ? "Creating..." : "Create space"}
       </button>
     </form>

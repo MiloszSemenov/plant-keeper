@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
 import { Newsreader, Plus_Jakarta_Sans } from "next/font/google";
-import { themeCssVariables } from "@/lib/design-tokens";
 import "./globals.css";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
-  variable: "--font-display"
+  variable: "--pk-font-display"
 });
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-body"
+  variable: "--pk-font-body"
 });
 
 export const metadata: Metadata = {
@@ -22,12 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body
-        className={`${newsreader.variable} ${plusJakartaSans.variable}`}
-        style={themeCssVariables as CSSProperties}
-      >
-        {children}
-      </body>
+      <body className={`${newsreader.variable} ${plusJakartaSans.variable}`}>{children}</body>
     </html>
   );
 }

@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "subtle" | "danger";
-export type ButtonSize = "sm" | "md" | "icon" | "text";
+export type ButtonSize = "sm" | "md" | "lg" | "icon" | "text";
 
 export function buttonClassName({
   variant = "primary",

@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function ManageInviteButton({
   vaultId,
@@ -18,7 +19,10 @@ export function ManageInviteButton({
   return (
     <button
       aria-label={label}
-      className="button button-ghost icon-button"
+      className={buttonClassName({
+        size: "icon",
+        variant: "ghost"
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {

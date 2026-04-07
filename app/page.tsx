@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SignInButton } from "@/components/sign-in-button";
+import { buttonClassName } from "@/components/ui/button";
 
 export default async function HomePage() {
   const session = await auth();
@@ -21,8 +22,14 @@ export default async function HomePage() {
             watering on track without turning the app into a chore.
           </p>
           <div className="landing-actions">
-            <SignInButton className="button-large" label="Get started with Google" />
-            <Link className="button button-ghost button-large" href="#how-it-works">
+            <SignInButton label="Get started with Google" size="lg" />
+            <Link
+              className={buttonClassName({
+                size: "lg",
+                variant: "ghost"
+              })}
+              href="#how-it-works"
+            >
               How it works
             </Link>
           </div>

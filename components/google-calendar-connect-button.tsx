@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { signIn } from "next-auth/react";
-import { cn } from "@/lib/utils";
+import { buttonClassName } from "@/components/ui/button";
 
 const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
@@ -17,7 +17,10 @@ export function GoogleCalendarConnectButton({
 
   return (
     <button
-      className={cn("button button-primary", className)}
+      className={buttonClassName({
+        className,
+        variant: "primary"
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(() => {

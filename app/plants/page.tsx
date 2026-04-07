@@ -5,6 +5,7 @@ import { getVaultPlants } from "@/services/plants";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
 import { PlantCard } from "@/components/plant-card";
+import { buttonClassName } from "@/components/ui/button";
 
 type PlantsPageProps = {
   searchParams: Promise<{
@@ -29,7 +30,12 @@ export default async function PlantsPage({ searchParams }: PlantsPageProps) {
     <AppShell
       actions={
         userCanManagePlants ? (
-          <Link className="button button-primary" href={`/add-plant?vaultId=${selectedMembership.vault.id}`}>
+          <Link
+            className={buttonClassName({
+              variant: "primary"
+            })}
+            href={`/add-plant?vaultId=${selectedMembership.vault.id}`}
+          >
             Add plant
           </Link>
         ) : undefined

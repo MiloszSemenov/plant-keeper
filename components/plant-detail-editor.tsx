@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ReactNode, ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 import { fileToDataUrl } from "@/lib/image-client";
 import { NotificationSettingForm } from "@/components/notification-setting-form";
 import { MarkWateredButton } from "@/components/mark-watered-button";
@@ -181,11 +182,19 @@ export function PlantDetailEditor({
             {canEdit ? (
               isEditing ? (
                 <>
-                  <button className="button button-primary" disabled={isSaving} type="submit">
+                  <button
+                    className={buttonClassName({
+                      variant: "primary"
+                    })}
+                    disabled={isSaving}
+                    type="submit"
+                  >
                     {isSaving ? "Saving..." : "Save changes"}
                   </button>
                   <button
-                    className="button button-ghost"
+                    className={buttonClassName({
+                      variant: "ghost"
+                    })}
                     onClick={() => {
                       resetEditor();
                       setIsEditing(false);
@@ -195,7 +204,9 @@ export function PlantDetailEditor({
                     Cancel
                   </button>
                   <button
-                    className="button button-danger"
+                    className={buttonClassName({
+                      variant: "danger"
+                    })}
                     disabled={isDeleting}
                     onClick={deletePlant}
                     type="button"
@@ -205,7 +216,9 @@ export function PlantDetailEditor({
                 </>
               ) : (
                 <button
-                  className="button button-ghost"
+                  className={buttonClassName({
+                    variant: "ghost"
+                  })}
                   onClick={() => {
                     resetEditor();
                     setIsEditing(true);
@@ -268,7 +281,9 @@ export function PlantDetailEditor({
                   <div className="stack-xs">
                     <div className="interval-stepper">
                       <button
-                        className="button button-ghost"
+                        className={buttonClassName({
+                          variant: "ghost"
+                        })}
                         onClick={() => setWateringIntervalDays((value) => Math.max(1, value - 1))}
                         type="button"
                       >
@@ -276,7 +291,9 @@ export function PlantDetailEditor({
                       </button>
                       <strong>{formatIntervalLabel(wateringIntervalDays)}</strong>
                       <button
-                        className="button button-ghost"
+                        className={buttonClassName({
+                          variant: "ghost"
+                        })}
                         onClick={() => setWateringIntervalDays((value) => Math.min(45, value + 1))}
                         type="button"
                       >

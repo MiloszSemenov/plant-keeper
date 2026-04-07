@@ -45,16 +45,12 @@ export function MarkWateredButton({
   return (
     <button
       aria-label={iconOnly ? pendingLabel : undefined}
-      className={cn(
-        buttonClassName({
-          className,
-          iconOnly,
-          size,
-          variant
-        }),
-        "button",
-        `button-${variant}`
-      )}
+      className={buttonClassName({
+        className,
+        iconOnly,
+        size,
+        variant
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {

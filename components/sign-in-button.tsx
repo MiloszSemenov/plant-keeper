@@ -2,14 +2,16 @@
 
 import { useTransition } from "react";
 import { signIn } from "next-auth/react";
-import { cn } from "@/lib/utils";
+import { buttonClassName, type ButtonSize } from "@/components/ui/button";
 
 export function SignInButton({
   className,
+  size = "md",
   callbackUrl = "/dashboard",
   label = "Continue with Google"
 }: {
   className?: string;
+  size?: ButtonSize;
   callbackUrl?: string;
   label?: string;
 }) {
@@ -17,7 +19,11 @@ export function SignInButton({
 
   return (
     <button
-      className={cn("button button-primary", className)}
+      className={buttonClassName({
+        className,
+        size,
+        variant: "primary"
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(() => {

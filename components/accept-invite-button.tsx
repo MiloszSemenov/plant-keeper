@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function AcceptInviteButton({
   token,
@@ -18,7 +19,9 @@ export function AcceptInviteButton({
 
   return (
     <button
-      className="button button-primary"
+      className={buttonClassName({
+        variant: "primary"
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {

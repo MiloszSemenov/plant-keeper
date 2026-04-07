@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function SpaceMembershipAction({
   vaultId,
@@ -21,7 +22,9 @@ export function SpaceMembershipAction({
 
   return (
     <button
-      className={isDeleteAction ? "button button-danger" : "button button-ghost"}
+      className={buttonClassName({
+        variant: isDeleteAction ? "danger" : "ghost"
+      })}
       disabled={isPending}
       onClick={() => {
         if (!window.confirm(confirmMessage)) {

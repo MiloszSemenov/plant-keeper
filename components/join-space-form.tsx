@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function JoinSpaceForm({ initialCode = "" }: { initialCode?: string }) {
   const router = useRouter();
@@ -30,7 +31,12 @@ export function JoinSpaceForm({ initialCode = "" }: { initialCode?: string }) {
           value={code}
         />
       </label>
-      <button className="button button-primary" type="submit">
+      <button
+        className={buttonClassName({
+          variant: "primary"
+        })}
+        type="submit"
+      >
         Continue
       </button>
     </form>

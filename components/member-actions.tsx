@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function MemberActions({
   vaultId,
@@ -81,7 +82,9 @@ export function MemberActions({
             <option value="editor">Editor</option>
           </select>
           <button
-            className="button button-secondary"
+            className={buttonClassName({
+              variant: "secondary"
+            })}
             disabled={isPending}
             onClick={updateRole}
             type="button"
@@ -89,7 +92,9 @@ export function MemberActions({
             OK
           </button>
           <button
-            className="button button-danger"
+            className={buttonClassName({
+              variant: "danger"
+            })}
             disabled={isPending}
             onClick={removeMember}
             type="button"
@@ -101,7 +106,9 @@ export function MemberActions({
         <>
           <span className="member-role">{roleLabel}</span>
           <button
-            className="button button-ghost"
+            className={buttonClassName({
+              variant: "ghost"
+            })}
             disabled={isPending}
             onClick={() => {
               setError(null);

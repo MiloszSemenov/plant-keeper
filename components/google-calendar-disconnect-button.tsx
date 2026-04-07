@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function GoogleCalendarDisconnectButton() {
   const router = useRouter();
@@ -31,7 +32,9 @@ export function GoogleCalendarDisconnectButton() {
   return (
     <div className="stack-xs">
       <button
-        className="button button-ghost"
+        className={buttonClassName({
+          variant: "ghost"
+        })}
         disabled={isPending}
         onClick={disconnect}
         type="button"

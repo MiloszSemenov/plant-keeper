@@ -2,12 +2,7 @@
 
 import { useTransition } from "react";
 import { signOut } from "next-auth/react";
-import {
-  buttonClassName,
-  type ButtonSize,
-  type ButtonVariant
-} from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { buttonClassName, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 
 export function SignOutButton({
   className,
@@ -22,15 +17,11 @@ export function SignOutButton({
 
   return (
     <button
-      className={cn(
-        buttonClassName({
-          className,
-          size,
-          variant
-        }),
-        "button",
-        `button-${variant}`
-      )}
+      className={buttonClassName({
+        className,
+        size,
+        variant
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(() => {

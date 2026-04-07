@@ -9,6 +9,7 @@ import {
   useTransition
 } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 import { fileToDataUrl } from "@/lib/image-client";
 import { normalizePlantLookupKey } from "@/lib/plants";
 
@@ -341,7 +342,9 @@ export function AddPlantForm({
 
       <div className="inline-actions">
         <button
-          className="button button-secondary"
+          className={buttonClassName({
+            variant: "secondary"
+          })}
           disabled={!image || identifyPending}
           onClick={identifyPlant}
           type="button"
@@ -464,7 +467,13 @@ export function AddPlantForm({
       {error ? <p className="field-error">{error}</p> : null}
 
       <div className="inline-actions">
-        <button className="button button-primary" disabled={!canSavePlant} type="submit">
+        <button
+          className={buttonClassName({
+            variant: "primary"
+          })}
+          disabled={!canSavePlant}
+          type="submit"
+        >
           {createPending ? "Saving plant..." : "Save plant"}
         </button>
         <p className="muted">If you skip the nickname, we will use the species name automatically.</p>

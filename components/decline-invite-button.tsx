@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 
 export function DeclineInviteButton({
   token,
@@ -18,7 +19,9 @@ export function DeclineInviteButton({
 
   return (
     <button
-      className="button button-ghost"
+      className={buttonClassName({
+        variant: "ghost"
+      })}
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {

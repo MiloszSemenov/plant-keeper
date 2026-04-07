@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import { buttonClassName } from "@/components/ui/button";
 
 export function InviteForm({ vaultId }: { vaultId: string }) {
   const [email, setEmail] = useState("");
@@ -52,7 +53,13 @@ export function InviteForm({ vaultId }: { vaultId: string }) {
         />
       </label>
       {error ? <p className="field-error">{error}</p> : null}
-      <button className="button button-primary" disabled={isPending} type="submit">
+      <button
+        className={buttonClassName({
+          variant: "primary"
+        })}
+        disabled={isPending}
+        type="submit"
+      >
         {isPending ? "Sending..." : "Create invite"}
       </button>
       {inviteUrl ? (
