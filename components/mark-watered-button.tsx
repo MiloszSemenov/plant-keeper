@@ -86,7 +86,9 @@ export function MarkWateredButton({
       type="button"
     >
       {icon ? <Icon className="ui-button__icon" name={icon} /> : null}
-      {iconOnly ? <span className="sr-only">{pendingLabel}</span> : pendingLabel}
+      <span className={iconOnly ? "sr-only ui-button__label" : "ui-button__label"}>
+        {pendingLabel}
+      </span>
     </button>
   );
 }

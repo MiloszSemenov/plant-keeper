@@ -122,7 +122,8 @@ export function AppShell({
                   </span>
                 </div>
               </div>
-              {vault.id === currentVaultId ? <span className="vault-chip__active">Live</span> : null}
+              {/* {vault.id === currentVaultId ? <span className="vault-chip__active">Live</span> : null} */}
+              {vault.id === currentVaultId ? (<img src="/icons/save.svg" alt="active" className="vault-chip__icon save-icon" />) : null}
             </Link>
           ))}
         </div>
@@ -180,24 +181,24 @@ export function AppShell({
                       <span className="avatar-chip avatar-chip--count">+{remainingGardeners}</span>
                     ) : null}
                   </div>
-                  <p className="gardeners-copy">
-                    {currentVault.memberCount} people care for this space together.
-                  </p>
+                  <Link
+                      className={buttonClassName({
+                        size: "sm",
+                        variant: "ghost"
+                      })}
+                      href={
+                        currentVaultId
+                          ? `/spaces/settings?vaultId=${currentVaultId}`
+                          : "/spaces/settings"
+                      }
+                    >
+                      <Icon className="ui-button__icon" name="invite" />
+                      Invite collaborator
+                  </Link>
                 </div>
-                <Link
-                  className={buttonClassName({
-                    size: "sm",
-                    variant: "ghost"
-                  })}
-                  href={
-                    currentVaultId
-                      ? `/spaces/settings?vaultId=${currentVaultId}`
-                      : "/spaces/settings"
-                  }
-                >
-                  <Icon className="ui-button__icon" name="invite" />
-                  Invite collaborator
-                </Link>
+                <p className="gardeners-copy">
+                  {currentVault.memberCount} people care for this space together.
+                </p>
               </section>
             ) : null}
           </div>
@@ -216,6 +217,7 @@ export function AppShell({
                 containerClassName="topbar-search"
                 placeholder="Search collection..."
                 type="search"
+                icon="search"
               />
             </div>
 
@@ -231,7 +233,7 @@ export function AppShell({
                 Join space
               </Link>
               <SignOutButton />
-              <span className="topbar-divider" />
+              {/* <span className="topbar-divider" />
               <button
                 aria-label="Notifications"
                 className={buttonClassName({
@@ -249,7 +251,7 @@ export function AppShell({
                 ) : (
                   getInitials(userName)
                 )}
-              </span>
+              </span> */}
             </div>
           </header>
 

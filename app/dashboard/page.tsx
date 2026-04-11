@@ -56,7 +56,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       canManagePlants={userCanManagePlants}
       currentPath="/dashboard"
       currentVaultId={selectedMembership.vault.id}
-      description="See what needs water first, what is coming up next, and which space is currently in focus."
+      description=""
       title={selectedMembership.vault.name}
       userImageUrl={user.image}
       userName={user.name}
@@ -66,12 +66,27 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <p className="sidebar-label">Recent logs</p>
           {activity.length > 0 ? (
             <div className="activity-timeline">
-              {activity.slice(0, 4).map((entry, index) => (
-                <div className={`activity-item activity-item--${index % 3}`} key={entry.id}>
-                  <p>{entry.description}</p>
-                  <span>{formatTimeAgo(entry.createdAt)}</span>
-                </div>
-              ))}
+              {activity.slice(0, 3).map((entry, index) => {
+                const tone = index % 3;
+                return (
+                  <div className="activity-item" key={entry.id}>
+                    <div
+                      className={`activity-dot ${
+                        tone === 0
+                          ? "activity-dot--secondary"
+                          : tone === 1
+                          ? "activity-dot--primary"
+                          : "activity-dot--outline"
+                      }`}
+                    />
+
+                    <p className="activity-text">{entry.description}</p>
+                    <span className="activity-time">
+                      {formatTimeAgo(entry.createdAt)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="muted">No recent activity yet.</p>
@@ -94,7 +109,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 dayOffset: devMode.dayOffset
               }}
               icon="water"
-              label="Water all"
+              label={`Water all (${dashboard.overdue.length})`}
               variant="secondary"
             />
           ) : null
@@ -102,7 +117,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         badge={
           dashboard.overdue.length > 0 ? (
             <Badge tone="danger" uppercase>
-              Action required
+              {dashboard.overdue.length > 0
+                ? `${dashboard.overdue.length} overdue now`
+                : "All clear"}
             </Badge>
           ) : (
             <Badge tone="success" uppercase>
@@ -136,7 +153,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 dayOffset: devMode.dayOffset
               }}
               icon="water"
-              label="Water all"
+              label={`Water all (${dashboard.today.length})`}
               variant="secondary"
             />
           ) : null
@@ -172,7 +189,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 dayOffset: devMode.dayOffset
               }}
               icon="water"
-              label="Water all"
+              label={`Water all (${dashboard.upcoming.length})`}
               variant="secondary"
             />
           ) : null
