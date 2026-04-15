@@ -20,7 +20,9 @@ const iconPaths = {
   trash: "/icons/trash.svg",
   close: "/icons/x.svg",
   back: "/icons/arrow-left.svg",
-  search: "/icons/search.svg"
+  search: "/icons/search.svg",
+  camera: "/icons/camera.svg",
+  cameraFill: "/icons/camera-fill.svg"
 } as const;
 
 export type IconName = keyof typeof iconPaths;
