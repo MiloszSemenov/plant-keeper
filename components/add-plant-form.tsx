@@ -430,6 +430,20 @@ export function AddPlantForm({
               type="search"
               value={speciesQuery}
             />
+            <div className="add-plant-identify-btn">
+              <Button
+                disabled={!image || identifyPending}
+                icon="cameraFill"
+                onClick={identifyPlant}
+                type="button"
+                variant="subtle"
+              >
+                {identifyPending ? "Identifying..." : "Identify from photo"}
+              </Button>
+              {!image ? (
+                <p className="add-plant-identify-hint">Upload a photo of your plant first</p>
+              ) : null}
+            </div>
           </div>
 
           {searchPending || visibleSuggestions.length > 0 ? (
@@ -571,17 +585,6 @@ export function AddPlantForm({
           status={previewWatering.status}
           statusLabel={previewWatering.statusLabel}
         />
-        <div>
-          <Button
-            disabled={!image || identifyPending}
-            onClick={identifyPlant}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            {identifyPending ? "Identifying..." : "Identify from photo"}
-          </Button>
-        </div>
       </aside>
     </form>
   );
