@@ -16,6 +16,7 @@ const iconPaths = {
   notifications: "/icons/notification.svg",
   notificationsOff: "/icons/notification-off.svg",
   save: "/icons/save.svg",
+  save_plant: "/icons/save2-fill.svg",
   trash: "/icons/trash.svg",
   close: "/icons/x.svg",
   back: "/icons/arrow-left.svg",
