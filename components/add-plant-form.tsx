@@ -4,14 +4,21 @@ import {
   ChangeEvent,
   FormEvent,
   useEffect,
+  useId,
   useRef,
   useState,
   useTransition
 } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClassName } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cardClassName } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/input";
 import { fileToDataUrl } from "@/lib/image-client";
 import { normalizePlantLookupKey } from "@/lib/plants";
+import { cn } from "@/lib/utils";
+import { PlantCardPreview } from "@/components/plant-card-preview";
 
 type VaultOption = {
   id: string;
@@ -36,6 +43,16 @@ type SpeciesSuggestion = {
 
 type SpeciesSource = "manual" | "photo" | "suggestion";
 
+type SuggestionListItem = {
+  key: string;
+  latinName: string;
+  commonName?: string;
+  imageUrl: string | null;
+  confidence?: number;
+  photoSuggestion?: PhotoSuggestion;
+  speciesSuggestion?: SpeciesSuggestion;
+};
+
 export function AddPlantForm({
   vaults,
   initialVaultId
@@ -44,6 +61,9 @@ export function AddPlantForm({
   initialVaultId: string;
 }) {
   const router = useRouter();
+  const photoInputId = useId();
+  const nicknameInputId = useId();
+  const spaceFieldLabelId = useId();
   const [vaultId, setVaultId] = useState(initialVaultId);
   const [nickname, setNickname] = useState("");
   const [speciesQuery, setSpeciesQuery] = useState("");
@@ -62,6 +82,12 @@ export function AddPlantForm({
   const lastSearchQueryRef = useRef<string>("");
   const searchAbortControllerRef = useRef<AbortController | null>(null);
   const speciesSuggestionCacheRef = useRef(new Map<string, SpeciesSuggestion[]>());
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const previewWatering = {
+    status: "today" as const,
+    statusLabel: "Water today",
+    lastWateredText: "3 days ago",
+  };
 
   useEffect(() => {
     const trimmedQuery = speciesQuery.trim();
@@ -227,6 +253,27 @@ export function AddPlantForm({
     return selectedSpeciesSuggestion?.imageUrl ?? selectedPhotoSuggestion?.imageUrl ?? undefined;
   }
 
+  function selectSuggestion(item: SuggestionListItem) {
+    if (item.speciesSuggestion) {
+      setSelectedSpeciesSuggestion(item.speciesSuggestion);
+      setSelectedPhotoSuggestion(null);
+      setSpeciesQuery(item.speciesSuggestion.commonName ?? item.speciesSuggestion.latinName);
+      setSpeciesSource("suggestion");
+      setError(null);
+      return;
+    }
+
+    if (item.photoSuggestion) {
+      setSelectedPhotoSuggestion(item.photoSuggestion);
+      setSelectedSpeciesSuggestion(null);
+      setSpeciesQuery(item.photoSuggestion.species);
+      setSpeciesSource("suggestion");
+      setSpeciesSuggestions([]);
+      lastSearchQueryRef.current = "";
+      setError(null);
+    }
+  }
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -285,199 +332,257 @@ export function AddPlantForm({
     });
   }
 
-  const canSavePlant = Boolean(getSelectedLatinName()) && !createPending;
+  const suggestionMap = new Map<string, SuggestionListItem>();
+
+  for (const suggestion of photoSuggestions) {
+    const key = normalizePlantLookupKey(suggestion.species);
+
+    if (!key) {
+      continue;
+    }
+
+    suggestionMap.set(key, {
+      key,
+      latinName: suggestion.species,
+      commonName: suggestion.commonNames[0],
+      imageUrl: suggestion.imageUrl ?? null,
+      confidence: suggestion.confidence,
+      photoSuggestion: suggestion
+    });
+  }
+
+  for (const suggestion of speciesSuggestions) {
+    const key = normalizePlantLookupKey(suggestion.latinName);
+
+    if (!key) {
+      continue;
+    }
+
+    const existingSuggestion = suggestionMap.get(key);
+
+    if (existingSuggestion) {
+      suggestionMap.set(key, {
+        ...existingSuggestion,
+        commonName: existingSuggestion.commonName ?? suggestion.commonName,
+        imageUrl: existingSuggestion.imageUrl ?? suggestion.imageUrl,
+        speciesSuggestion: suggestion
+      });
+      continue;
+    }
+
+    suggestionMap.set(key, {
+      key,
+      latinName: suggestion.latinName,
+      commonName: suggestion.commonName,
+      imageUrl: suggestion.imageUrl,
+      speciesSuggestion: suggestion
+    });
+  }
+
+  const visibleSuggestions = [...suggestionMap.values()].sort((a, b) => {
+    const aIsPhoto = Boolean(a.photoSuggestion);
+    const bIsPhoto = Boolean(b.photoSuggestion);
+
+    if (aIsPhoto !== bIsPhoto) {
+      return aIsPhoto ? -1 : 1;
+    }
+
+    return (b.confidence ?? 0) - (a.confidence ?? 0);
+  });
+  const selectedLatinName = getSelectedLatinName();
+  const selectedSuggestionKey = selectedLatinName
+    ? normalizePlantLookupKey(selectedLatinName)
+    : null;
+  const canSavePlant = Boolean(selectedLatinName) && !createPending;
+
+  const previewName = nickname.trim() || speciesQuery.trim() || "Your plant";
+  const previewImageUrl = image ?? selectedSpeciesSuggestion?.imageUrl ?? selectedPhotoSuggestion?.imageUrl ?? null;
+  const previewScientificName = selectedLatinName ?? undefined;
 
   return (
-    <form className="panel stack-md" onSubmit={onSubmit}>
-      <div className="stack-xs">
-        <p className="eyebrow">Add plant</p>
-        <h2>Add a plant to your space</h2>
-        <p>
-          Drop in a photo for instant suggestions, or type a plant name and select one Latin-name
-          match before saving.
-        </p>
-      </div>
+    <form className="add-plant-flow" onSubmit={onSubmit}>
+      <input
+        accept="image/*"
+        className="sr-only"
+        id={photoInputId}
+        onChange={onImageChange}
+        ref={photoInputRef}
+        type="file"
+      />
 
-      <div className="form-grid">
-        <label className="field">
-          <span>Space</span>
-          <select onChange={(event) => setVaultId(event.target.value)} value={vaultId}>
-            {vaults.map((vault) => (
-              <option key={vault.id} value={vault.id}>
-                {vault.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Nickname (optional)</span>
-          <input
-            onChange={(event) => setNickname(event.target.value)}
-            placeholder="Living room Monstera"
-            value={nickname}
-          />
-        </label>
-      </div>
-
-      <label className="upload-field">
-        <span className="field-label">Plant photo</span>
-        <input accept="image/*" className="sr-only" onChange={onImageChange} type="file" />
-        <span className="upload-card">
-          {image ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt={imageName ?? "Plant preview"} className="upload-preview" src={image} />
-              <span className="upload-overlay">Swap photo</span>
-            </>
-          ) : (
-            <span className="upload-placeholder">
-              <strong>Choose a photo</strong>
-              <small>JPG, PNG, WebP, or HEIC under 5 MB.</small>
-            </span>
-          )}
-        </span>
-        <small>{imageName ? `Ready: ${imageName}` : "A clear leaf photo usually works best."}</small>
-      </label>
-
-      <div className="inline-actions">
-        <button
-          className={buttonClassName({
-            variant: "secondary"
-          })}
-          disabled={!image || identifyPending}
-          onClick={identifyPlant}
-          type="button"
-        >
-          {identifyPending ? "Identifying..." : "Identify from photo"}
-        </button>
-        {photoSuggestions.length > 0 ? (
-          <p className="muted">Pick one of the photo matches or keep searching by name.</p>
-        ) : null}
-      </div>
-
-      {photoSuggestions.length > 0 ? (
-        <div className="stack-sm">
-          <div className="section-heading">
-            <p className="eyebrow">From photo</p>
+      <div className="add-plant-main">
+        <section className="add-plant-search-hero">
+          <div className="add-plant-search-copy">
+            <h2 className="add-plant-search-title">Plant&apos;s name</h2>
+            <Input
+              aria-label="Plant name"
+              autoFocus
+              containerClassName="add-plant-name-input"
+              onChange={(event) => {
+                setSpeciesQuery(event.target.value);
+                setSpeciesSource("manual");
+                setSelectedSpeciesSuggestion(null);
+                setSelectedPhotoSuggestion(null);
+                setError(null);
+              }}
+              placeholder="Search or type a plant name..."
+              required
+              type="search"
+              value={speciesQuery}
+            />
           </div>
-          <div className="suggestion-grid">
-            {photoSuggestions.map((suggestion) => {
-              const isActive = selectedPhotoSuggestion?.species === suggestion.species;
 
-              return (
-                <button
-                  className={isActive ? "suggestion-card active" : "suggestion-card"}
-                  key={`${suggestion.species}-${suggestion.confidence ?? 0}`}
-                  onClick={() => {
-                    setSelectedPhotoSuggestion(suggestion);
-                    setSelectedSpeciesSuggestion(null);
-                    setSpeciesQuery(suggestion.species);
-                    setSpeciesSource("suggestion");
-                    setSpeciesSuggestions([]);
-                    lastSearchQueryRef.current = "";
-                    setError(null);
-                  }}
-                  type="button"
-                >
-                  <strong>{suggestion.species}</strong>
-                  <span>
-                    {suggestion.confidence
-                      ? `${Math.round(suggestion.confidence * 100)}% match`
-                      : "Suggested match"}
-                  </span>
-                  {suggestion.commonNames[0] ? <small>{suggestion.commonNames[0]}</small> : null}
-                  {suggestion.description ? (
-                    <p className="suggestion-copy">{suggestion.description.slice(0, 120)}...</p>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+          {searchPending || visibleSuggestions.length > 0 ? (
+            <p className="muted add-plant-suggestions-label">
+              {searchPending ? "Searching..." : "Pick the closest match"}
+            </p>
+          ) : null}
 
-      <label className="field">
-        <span>Plant name</span>
-        <input
-          onChange={(event) => {
-            setSpeciesQuery(event.target.value);
-            setSpeciesSource("manual");
-            setSelectedSpeciesSuggestion(null);
-            setSelectedPhotoSuggestion(null);
-            setError(null);
-          }}
-          placeholder="Start typing: Chinese money plant"
-          required
-          value={speciesQuery}
-        />
-        <small>Type at least 3 characters, then select one suggestion before saving.</small>
-      </label>
+          {visibleSuggestions.length > 0 ? (
+            <div className="add-plant-suggestions">
+              {visibleSuggestions.map((suggestion) => {
+                const displayName = suggestion.commonName ?? suggestion.latinName;
+                const hasSecondaryName =
+                  suggestion.commonName &&
+                  normalizePlantLookupKey(suggestion.commonName) !==
+                    normalizePlantLookupKey(suggestion.latinName);
+                const isActive = selectedSuggestionKey === suggestion.key;
 
-      {speciesSuggestions.length > 0 ? (
-        <div className="stack-sm">
-          <div className="inline-actions">
-            <p className="eyebrow">Suggestions</p>
-            {searchPending ? <p className="muted">Searching...</p> : null}
-          </div>
-          <div className="suggestion-grid">
-            {speciesSuggestions.map((suggestion) => {
-              const isActive = selectedSpeciesSuggestion?.latinName === suggestion.latinName;
-
-              return (
-                <button
-                  className={isActive ? "suggestion-card active" : "suggestion-card"}
-                  key={suggestion.latinName}
-                  onClick={() => {
-                    setSelectedSpeciesSuggestion(suggestion);
-                    setSelectedPhotoSuggestion(null);
-                    setSpeciesQuery(suggestion.commonName ?? suggestion.latinName);
-                    setSpeciesSource("suggestion");
-                    setError(null);
-                  }}
-                  type="button"
-                >
-                  {suggestion.imageUrl ? (
-                    <span className="suggestion-media">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img alt={suggestion.latinName} src={suggestion.imageUrl} />
+                return (
+                  <button
+                    className={cn(
+                      cardClassName({
+                        className: "add-plant-suggestion",
+                        padding: "none"
+                      }),
+                      isActive && "add-plant-suggestion--active"
+                    )}
+                    key={suggestion.key}
+                    onClick={() => selectSuggestion(suggestion)}
+                    type="button"
+                  >
+                    <span className="add-plant-suggestion__media">
+                      {suggestion.imageUrl ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img alt={displayName} src={suggestion.imageUrl} />
+                        </>
+                      ) : (
+                        <span className="add-plant-suggestion__placeholder">
+                          <Icon className="add-plant-suggestion__icon" name="plant" />
+                          <span>{displayName.slice(0, 1).toUpperCase()}</span>
+                        </span>
+                      )}
                     </span>
-                  ) : null}
-                  <strong>{suggestion.latinName}</strong>
+
+                    <span className="add-plant-suggestion__body">
+                      <span className="add-plant-suggestion__header">
+                        {isActive ? (
+                          <Badge tone="accent" uppercase>
+                            Selected
+                          </Badge>
+                        ) : null}
+                      </span>
+                      {suggestion.confidence ? (
+                        <span className="add-plant-suggestion__meta">
+                          {Math.round(suggestion.confidence * 100)}% photo match
+                        </span>
+                      ) : null}
+                      <strong className="add-plant-suggestion__title">{displayName}</strong>
+                      {hasSecondaryName ? (
+                        <span className="add-plant-suggestion__subtitle">{suggestion.latinName}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {speciesSource === "manual" &&
+          speciesQuery.trim().length >= 3 &&
+          !searchPending &&
+          speciesSuggestions.length === 0 &&
+          photoSuggestions.length === 0 ? (
+            <p className="muted add-plant-empty-state">
+              No matches yet. Try a more specific name.
+            </p>
+          ) : null}
+        </section>
+
+        <div className="add-plant-details">
+          <h3 className="add-plant-details-title">Plant details</h3>
+
+          <div className="field add-plant-detail-field">
+            <label className="field-label" htmlFor={nicknameInputId}>
+              Nickname
+            </label>
+            <Input
+              containerClassName="add-plant-nickname-input"
+              id={nicknameInputId}
+              onChange={(event) => setNickname(event.target.value)}
+              placeholder="Give your plant a nickname..."
+              value={nickname}
+            />
+          </div>
+
+          <div className="field add-plant-detail-field">
+            <p className="field-label" id={spaceFieldLabelId}>
+              Space:
+            </p>
+            <div aria-labelledby={spaceFieldLabelId} className="space-picker" role="group">
+              {vaults.map((vault) => (
+                <button
+                  aria-pressed={vaultId === vault.id}
+                  className={cn(
+                    "space-picker__pill",
+                    vaultId === vault.id && "space-picker__pill--active"
+                  )}
+                  key={vault.id}
+                  onClick={() => setVaultId(vault.id)}
+                  type="button"
+                >
+                  {vault.name}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
-      ) : null}
 
-      {speciesSource === "manual" &&
-      speciesQuery.trim().length >= 3 &&
-      !searchPending &&
-      speciesSuggestions.length === 0 ? (
-        <p className="muted">No species suggestions yet. Try a more specific plant name.</p>
-      ) : null}
+        {error ? <p className="field-error">{error}</p> : null}
 
-      {getSelectedLatinName() ? (
-        <p className="muted">Selected species: {getSelectedLatinName()}</p>
-      ) : (
-        <p className="muted">Pick a suggestion to lock the species before saving.</p>
-      )}
-
-      {error ? <p className="field-error">{error}</p> : null}
-
-      <div className="inline-actions">
-        <button
-          className={buttonClassName({
-            variant: "primary"
-          })}
-          disabled={!canSavePlant}
-          type="submit"
-        >
-          {createPending ? "Saving plant..." : "Save plant"}
-        </button>
-        <p className="muted">If you skip the nickname, we will use the species name automatically.</p>
+        <div className="add-plant-footer">
+          <Button disabled={!canSavePlant} icon="save_plant" size="lg" type="submit" variant="primary">
+            {createPending ? "Saving plant..." : "Save plant"}
+          </Button>
+        </div>
       </div>
+
+      <div aria-hidden="true" className="add-plant-divider" />
+
+      <aside className="add-plant-preview">
+        <p className="add-plant-preview-label">Preview</p>
+        <PlantCardPreview
+          imageUrl={previewImageUrl}
+          lastWateredText={previewWatering.lastWateredText}
+          name={previewName}
+          onImageClick={() => photoInputRef.current?.click()}
+          scientificName={previewScientificName}
+          status={previewWatering.status}
+          statusLabel={previewWatering.statusLabel}
+        />
+        <div>
+          <Button
+            disabled={!image || identifyPending}
+            onClick={identifyPlant}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            {identifyPending ? "Identifying..." : "Identify from photo"}
+          </Button>
+        </div>
+      </aside>
     </form>
   );
 }

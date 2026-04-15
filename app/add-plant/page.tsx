@@ -27,19 +27,21 @@ export default async function AddPlantPage({ searchParams }: AddPlantPageProps) 
       canManagePlants={userCanManagePlants}
       currentPath="/add-plant"
       currentVaultId={selectedMembership.vault.id}
-      description="Use a plant photo when you have one, or type the species yourself and let Plant Keeper fill in care data."
+      description=""
       title="Add a plant"
       userName={user.name}
       vaults={vaults}
     >
       {userCanManagePlants ? (
-        <AddPlantForm
-          initialVaultId={selectedMembership.vault.id}
-          vaults={memberships.map((membership) => ({
-            id: membership.vault.id,
-            name: membership.vault.name
-          }))}
-        />
+        <section className="add-plant-layout">
+          <AddPlantForm
+            initialVaultId={selectedMembership.vault.id}
+            vaults={memberships.map((membership) => ({
+              id: membership.vault.id,
+              name: membership.vault.name
+            }))}
+          />
+        </section>
       ) : (
         <section className="panel">
           <EmptyState
