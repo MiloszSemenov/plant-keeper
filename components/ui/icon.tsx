@@ -15,14 +15,29 @@ const iconPaths = {
   edit: "/icons/edit.svg",
   notifications: "/icons/notification.svg",
   notificationsOff: "/icons/notification-off.svg",
+  notificationFill: "/icons/notification-fill.svg",
   save: "/icons/save.svg",
+  saveFill: "/icons/save-fill.svg",
   save_plant: "/icons/save2-fill.svg",
   trash: "/icons/trash.svg",
   close: "/icons/x.svg",
   back: "/icons/arrow-left.svg",
   search: "/icons/search.svg",
   camera: "/icons/camera.svg",
-  cameraFill: "/icons/camera-fill.svg"
+  cameraFill: "/icons/camera-fill.svg",
+  usersFill: "/icons/users-fill.svg",
+  listDashesFill: "/icons/list-dashes-fill.svg",
+  calendarFill: "/icons/calendar-dots-fill.svg",
+  leafFill: "/icons/leaf-fill.svg",
+  clockCounterClockwise: "/icons/clock-counter-clockwise.svg",
+  calendarPlus: "/icons/calendar-plus.svg",
+  dotsThreeVertical: "/icons/dots-three-vertical.svg",
+  plantFill: "/icons/plant-fill.svg",
+  sunFill: "/icons/sun-fill.svg",
+  soilIcon: "/icons/soil-icon.svg",
+  flaskFill: "/icons/flask-fill.svg",
+  pawFill: "/icons/paw-print-fill.svg",
+  userPlusFill: "/icons/user-plus-fill.svg"
 } as const;
 
 export type IconName = keyof typeof iconPaths;
