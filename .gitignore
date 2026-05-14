@@ -8,4 +8,6 @@ dist
 prisma/dev.db
 public
 AGENTS.md
+CLAUDE.md
+.claude
 *.tsbuildinfo
