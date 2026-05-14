@@ -171,14 +171,21 @@ export function AddPlantForm({
     };
   }, [speciesQuery, speciesSource]);
 
+  function clearPhoto() {
+    setImage(undefined);
+    setImageName(null);
+    setPhotoSuggestions([]);
+    setSelectedPhotoSuggestion(null);
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  }
+
   async function onImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) {
-      setImage(undefined);
-      setImageName(null);
-      setPhotoSuggestions([]);
-      setSelectedPhotoSuggestion(null);
+      clearPhoto();
       return;
     }
 
@@ -191,10 +198,7 @@ export function AddPlantForm({
       setSelectedPhotoSuggestion(null);
     } catch (fileError) {
       setError(fileError instanceof Error ? fileError.message : "Unable to load the image");
-      setImage(undefined);
-      setImageName(null);
-      setPhotoSuggestions([]);
-      setSelectedPhotoSuggestion(null);
+      clearPhoto();
     }
   }
 
@@ -393,14 +397,16 @@ export function AddPlantForm({
   const selectedSuggestionKey = selectedLatinName
     ? normalizePlantLookupKey(selectedLatinName)
     : null;
-  const canSavePlant = Boolean(selectedLatinName) && !createPending;
+  const hasSelection = Boolean(selectedLatinName);
+  const showPreview = hasSelection || Boolean(image);
+  const canSavePlant = hasSelection && !createPending;
 
   const previewName = nickname.trim() || speciesQuery.trim() || "Your plant";
   const previewImageUrl = image ?? selectedSpeciesSuggestion?.imageUrl ?? selectedPhotoSuggestion?.imageUrl ?? null;
   const previewScientificName = selectedLatinName ?? undefined;
 
   return (
-    <form className="add-plant-flow" onSubmit={onSubmit}>
+    <form className={cn("add-plant-flow", showPreview && "add-plant-flow--with-preview")} onSubmit={onSubmit}>
       <input
         accept="image/*"
         className="sr-only"
@@ -427,6 +433,16 @@ export function AddPlantForm({
               }}
               placeholder="Search or type a plant name..."
               required
+              rightAction={
+                <button
+                  aria-label="Upload plant photo"
+                  className="ui-input__right-action"
+                  onClick={() => photoInputRef.current?.click()}
+                  type="button"
+                >
+                  <Icon name="camera" />
+                </button>
+              }
               type="search"
               value={speciesQuery}
             />
@@ -479,7 +495,7 @@ export function AddPlantForm({
                       {suggestion.imageUrl ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img alt={displayName} src={suggestion.imageUrl} />
+                          <img alt={displayName} draggable={false} src={suggestion.imageUrl} />
                         </>
                       ) : (
                         <span className="add-plant-suggestion__placeholder">
@@ -524,7 +540,7 @@ export function AddPlantForm({
           ) : null}
         </section>
 
-        <div className="add-plant-details">
+        {hasSelection ? <div className="add-plant-details">
           <h3 className="add-plant-details-title">Plant details</h3>
 
           <div className="field add-plant-detail-field">
@@ -561,31 +577,34 @@ export function AddPlantForm({
               ))}
             </div>
           </div>
-        </div>
+        </div> : null}
 
         {error ? <p className="field-error">{error}</p> : null}
 
-        <div className="add-plant-footer">
+        {hasSelection ? <div className="add-plant-footer">
           <Button disabled={!canSavePlant} icon="save_plant" size="lg" type="submit" variant="primary">
             {createPending ? "Saving plant..." : "Save plant"}
           </Button>
-        </div>
+        </div> : null}
       </div>
 
-      <div aria-hidden="true" className="add-plant-divider" />
+      {showPreview ? <div aria-hidden="true" className="add-plant-divider" /> : null}
 
-      <aside className="add-plant-preview">
-        <p className="add-plant-preview-label">Preview</p>
-        <PlantCardPreview
-          imageUrl={previewImageUrl}
-          lastWateredText={previewWatering.lastWateredText}
-          name={previewName}
-          onImageClick={() => photoInputRef.current?.click()}
-          scientificName={previewScientificName}
-          status={previewWatering.status}
-          statusLabel={previewWatering.statusLabel}
-        />
-      </aside>
+      {showPreview ? (
+        <aside className="add-plant-preview">
+          <p className="add-plant-preview-label">Preview</p>
+          <PlantCardPreview
+            imageUrl={previewImageUrl}
+            lastWateredText={previewWatering.lastWateredText}
+            name={previewName}
+            onClearPhoto={image ? clearPhoto : undefined}
+            onImageClick={() => photoInputRef.current?.click()}
+            scientificName={previewScientificName}
+            status={previewWatering.status}
+            statusLabel={previewWatering.statusLabel}
+          />
+        </aside>
+      ) : null}
     </form>
   );
 }

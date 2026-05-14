@@ -1,17 +1,15 @@
 "use client";
 
+import { ReactNode, ChangeEvent, useState, useTransition } from "react";
 import Link from "next/link";
-import { ReactNode, ChangeEvent, FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { buttonClassName } from "@/components/ui/button";
 import { fileToDataUrl } from "@/lib/image-client";
+import { formatDate } from "@/lib/time";
 import { NotificationSettingForm } from "@/components/notification-setting-form";
 import { MarkWateredButton } from "@/components/mark-watered-button";
 import { StatusPill } from "@/components/status-pill";
-
-function formatIntervalLabel(days: number) {
-  return days === 1 ? "1 day" : `${days} days`;
-}
+import { Icon } from "@/components/ui/icon";
 
 export function PlantDetailEditor({
   plantId,
@@ -22,17 +20,17 @@ export function PlantDetailEditor({
   imageUrl: initialImageUrl,
   nextWateringAt,
   wateringIntervalDays: initialWateringIntervalDays,
-  recommendedWateringIntervalDays,
-  observedWateringIntervalDays,
-  observedWateringEventCount,
   lightRequirement,
   soilType,
   petToxic,
   fertilizerIntervalDays,
   careNotes,
+  createdAt,
   notificationsEnabled,
   canEdit,
-  children
+  scheduleContent,
+  logContent,
+  membersContent
 }: {
   plantId: string;
   vaultId: string;
@@ -40,11 +38,9 @@ export function PlantDetailEditor({
   nickname: string;
   scientificName: string;
   imageUrl: string | null;
+  createdAt: Date | string;
   nextWateringAt: Date | string;
   wateringIntervalDays: number;
-  recommendedWateringIntervalDays: number;
-  observedWateringIntervalDays: number | null;
-  observedWateringEventCount: number;
   lightRequirement: string | null;
   soilType: string | null;
   petToxic: boolean | null;
@@ -52,7 +48,9 @@ export function PlantDetailEditor({
   careNotes: string | null;
   notificationsEnabled: boolean;
   canEdit: boolean;
-  children: ReactNode;
+  scheduleContent: ReactNode;
+  logContent: ReactNode;
+  membersContent: ReactNode;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -63,7 +61,6 @@ export function PlantDetailEditor({
   const [imageName, setImageName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
-  const [isDeleting, startDeleting] = useTransition();
 
   function resetEditor() {
     setNickname(initialNickname);
@@ -95,21 +92,15 @@ export function PlantDetailEditor({
     }
   }
 
-  function saveChanges(event: FormEvent<HTMLFormElement>) {
+  function saveChanges(event: { preventDefault(): void }) {
     event.preventDefault();
     setError(null);
 
     startSaving(async () => {
       const response = await fetch(`/api/plants/${plantId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          nickname: nickname.trim(),
-          wateringIntervalDays,
-          image
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: nickname.trim(), wateringIntervalDays, image })
       });
 
       const payload = await response.json().catch(() => ({ error: "Unable to update plant" }));
@@ -124,223 +115,247 @@ export function PlantDetailEditor({
     });
   }
 
-  function deletePlant() {
-    if (!window.confirm("Delete this plant from the space?")) {
-      return;
-    }
-
-    setError(null);
-
-    startDeleting(async () => {
-      const response = await fetch(`/api/plants/${plantId}`, {
-        method: "DELETE"
-      });
-
-      const payload = await response.json().catch(() => ({ error: "Unable to delete plant" }));
-
-      if (!response.ok) {
-        setError(payload.error ?? "Unable to delete plant");
-        return;
-      }
-
-      router.push(`/dashboard?vaultId=${vaultId}`);
-      router.refresh();
-    });
-  }
+  const petToxicLabel =
+    petToxic === null ? "Unknown" : petToxic ? "Toxic to cats and dogs" : "Pet safe";
 
   return (
-    <>
-      <section className="detail-hero panel">
-        <form className="detail-hero-copy" onSubmit={saveChanges}>
-          <Link className="back-link" href={`/dashboard?vaultId=${vaultId}`}>
-            Back to dashboard
-          </Link>
-          <p className="eyebrow">{vaultName}</p>
+    <form className="detail-layout" onSubmit={saveChanges}>
+      {/* ── Breadcrumb ───────────────────────────────────────── */}
+      <nav aria-label="Breadcrumb" className="detail-breadcrumb">
+        <Link href="/dashboard" className="detail-breadcrumb__link">{vaultName}</Link>
+        <span className="detail-breadcrumb__sep">›</span>
+        <span>{nickname}</span>
+      </nav>
+
+      {/* ── Left column ──────────────────────────────────────── */}
+      <div className="detail-left-col">
+
+        {/* Plant card — image + name */}
+        <section className="detail-plant-card panel">
+          {canEdit ? (
+            <button
+              aria-label={isEditing ? "Cancel editing" : "Edit plant"}
+              className="detail-hero-edit"
+              onClick={isEditing
+                ? (e) => { e.preventDefault(); resetEditor(); setIsEditing(false); }
+                : (e) => { e.preventDefault(); resetEditor(); setIsEditing(true); }
+              }
+              type="button"
+            >
+              <Icon name={isEditing ? "close" : "edit"} />
+            </button>
+          ) : null}
+
           {isEditing ? (
-            <input
-              className="detail-title-input"
-              onChange={(event) => {
-                setNickname(event.target.value);
-                setError(null);
-              }}
-              required
-              value={nickname}
-            />
+            <label className="detail-media detail-media-upload">
+              <input accept="image/*" className="sr-only" onChange={onImageChange} type="file" />
+              {previewUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt={nickname} src={previewUrl} />
+                  <span className="upload-overlay">Change photo</span>
+                </>
+              ) : (
+                <div className="detail-placeholder">
+                  <span>{nickname.slice(0, 1).toUpperCase()}</span>
+                  <span className="upload-overlay">Upload photo</span>
+                </div>
+              )}
+              <div className="detail-status-overlay">
+                <StatusPill nextWateringAt={nextWateringAt} />
+              </div>
+            </label>
           ) : (
-            <h1>{nickname}</h1>
+            <div className="detail-media">
+              {previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt={nickname} src={previewUrl} />
+              ) : (
+                <div className="detail-placeholder">
+                  <span>{nickname.slice(0, 1).toUpperCase()}</span>
+                </div>
+              )}
+              <div className="detail-status-overlay">
+                <StatusPill nextWateringAt={nextWateringAt} />
+              </div>
+            </div>
           )}
-          <p>{scientificName}</p>
-          <div className="inline-actions">
-            <StatusPill nextWateringAt={nextWateringAt} />
-            <MarkWateredButton plantId={plantId} />
+
+          <div className="detail-plant-card-body">
+            {isEditing ? (
+              <input
+                className="detail-title-input"
+                onChange={(e) => { setNickname(e.target.value); setError(null); }}
+                required
+                value={nickname}
+              />
+            ) : (
+              <h1>{nickname}</h1>
+            )}
+            <p className="detail-plant-sci-name">{scientificName}</p>
+            <div className="detail-plant-meta">
+              <div className="detail-plant-meta-item">
+                <Icon name="calendarFill" />
+                <div>
+                  <span className="eyebrow">Added on</span>
+                  <span className="detail-plant-meta-value">{formatDate(createdAt)}</span>
+                </div>
+              </div>
+              <div className="detail-plant-meta-divider" aria-hidden="true" />
+              <div className="detail-plant-meta-item">
+                <Icon name="home" />
+                <div>
+                  <span className="eyebrow">Space</span>
+                  <span className="detail-plant-meta-value">{vaultName}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Watering + notifications panel */}
+        <section className="detail-watering-panel panel">
+          <div className="detail-watering-header">
+            <span className="detail-watering-icon-wrap">
+              <Icon name="water" />
+            </span>
+            <div className="detail-watering-info">
+              <span className="eyebrow">Watering needs</span>
+              {isEditing ? (
+                <div className="detail-watering-edit">
+                  <span className="detail-watering-value">Every</span>
+                  <input
+                    className="detail-watering-input"
+                    max={45}
+                    min={1}
+                    onChange={(e) =>
+                      setWateringIntervalDays(Math.max(1, Math.min(45, Number(e.target.value))))
+                    }
+                    type="number"
+                    value={wateringIntervalDays}
+                  />
+                  <span className="detail-watering-value">days</span>
+                </div>
+              ) : (
+                <span className="detail-watering-value">Every {wateringIntervalDays} days</span>
+              )}
+            </div>
+          </div>
+
+          <MarkWateredButton className="detail-watered-full" icon="water" plantId={plantId} variant="primary" />
+
+          <hr className="detail-divider" />
+
+          <div className="detail-reminder-row">
+            <Icon className="detail-reminder-icon" name="notificationFill" />
             <NotificationSettingForm
               endpoint={`/api/plants/${plantId}/notifications`}
               initialEmailEnabled={notificationsEnabled}
-              label="Send watering reminders for this plant"
+              label="Send watering reminders"
               variant="switch"
             />
-            {canEdit ? (
-              isEditing ? (
-                <>
-                  <button
-                    className={buttonClassName({
-                      variant: "primary"
-                    })}
-                    disabled={isSaving}
-                    type="submit"
-                  >
-                    {isSaving ? "Saving..." : "Save changes"}
-                  </button>
-                  <button
-                    className={buttonClassName({
-                      variant: "ghost"
-                    })}
-                    onClick={() => {
-                      resetEditor();
-                      setIsEditing(false);
-                    }}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className={buttonClassName({
-                      variant: "danger"
-                    })}
-                    disabled={isDeleting}
-                    onClick={deletePlant}
-                    type="button"
-                  >
-                    {isDeleting ? "Deleting..." : "Delete plant"}
-                  </button>
-                </>
-              ) : (
-                <button
-                  className={buttonClassName({
-                    variant: "ghost"
-                  })}
-                  onClick={() => {
-                    resetEditor();
-                    setIsEditing(true);
-                  }}
-                  type="button"
-                >
-                  Edit
-                </button>
-              )
-            ) : null}
           </div>
-          {!canEdit ? (
-            <p className="muted">
-              Members can water plants, but only owners and editors can change plant details or
-              delete them from the space.
-            </p>
-          ) : null}
-          {isEditing && imageName ? <p className="muted">Ready: {imageName}</p> : null}
-          {error ? <p className="field-error">{error}</p> : null}
-        </form>
-        {isEditing ? (
-          <label className="detail-media detail-media-upload">
-            <input accept="image/*" className="sr-only" onChange={onImageChange} type="file" />
-            {previewUrl ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt={nickname} src={previewUrl} />
-                <span className="upload-overlay">Replace photo</span>
-              </>
-            ) : (
-              <div className="detail-placeholder">
-                <span>{nickname.slice(0, 1).toUpperCase()}</span>
-                <span className="upload-overlay">Upload photo</span>
-              </div>
-            )}
-          </label>
-        ) : (
-          <div className="detail-media">
-            {previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt={nickname} src={previewUrl} />
-            ) : (
-              <div className="detail-placeholder">
-                <span>{nickname.slice(0, 1).toUpperCase()}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+        </section>
 
-      <section className="detail-grid">
-        <article className="panel stack-sm">
-          <p className="eyebrow">Care profile</p>
-          <h2>Watering and light</h2>
-          <dl className="detail-list">
-            <div>
-              <dt>Water every</dt>
-              <dd>
-                {isEditing ? (
-                  <div className="stack-xs">
-                    <div className="interval-stepper">
-                      <button
-                        className={buttonClassName({
-                          variant: "ghost"
-                        })}
-                        onClick={() => setWateringIntervalDays((value) => Math.max(1, value - 1))}
-                        type="button"
-                      >
-                        -
-                      </button>
-                      <strong>{formatIntervalLabel(wateringIntervalDays)}</strong>
-                      <button
-                        className={buttonClassName({
-                          variant: "ghost"
-                        })}
-                        onClick={() => setWateringIntervalDays((value) => Math.min(45, value + 1))}
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <p className="muted detail-note">
-                      Recommended: every {formatIntervalLabel(recommendedWateringIntervalDays)}
-                      {observedWateringIntervalDays
-                        ? ` (users water this plant every ${formatIntervalLabel(observedWateringIntervalDays)} based on ${observedWateringEventCount} events)`
-                        : ""}
-                    </p>
-                  </div>
-                ) : (
-                  `${wateringIntervalDays} days`
-                )}
-              </dd>
+        {/* Shared Access */}
+        {membersContent}
+
+        {canEdit && isEditing ? (
+          <div className="inline-actions detail-save-row">
+            {imageName ? <p className="muted detail-note">{imageName}</p> : null}
+            {error ? <p className="field-error">{error}</p> : null}
+            <button
+              aria-label={isSaving ? "Saving…" : "Save changes"}
+              className={buttonClassName({ variant: "primary", size: "icon" })}
+              disabled={isSaving}
+              type="submit"
+            >
+              <Icon className="ui-button__icon" name="saveFill" />
+            </button>
+          </div>
+        ) : null}
+
+        {!canEdit ? (
+          <p className="muted">
+            Members can water plants, but only owners and editors can change plant details or
+            delete them from the space.
+          </p>
+        ) : null}
+      </div>
+
+      {/* ── Right column ─────────────────────────────────────── */}
+      <div className="detail-right-col">
+
+        {/* Care Profile */}
+        <article className="panel stack-md detail-care-panel">
+          <h2 className="detail-section-title">Care Profile</h2>
+
+          <div className="detail-care-features">
+            <div className="detail-care-top-row">
+              <div className="detail-care-feature">
+                <div className="detail-care-feature__icon-wrap">
+                  <Icon className="detail-care-feature__icon" name="plantFill" />
+                </div>
+                <span className="eyebrow">Species</span>
+                <span className="detail-care-feature__value">{scientificName}</span>
+              </div>
+              <div className="detail-care-feature">
+                <div className="detail-care-feature__icon-wrap">
+                  <Icon className="detail-care-feature__icon" name="sunFill" />
+                </div>
+                <span className="eyebrow">Light</span>
+                <span className="detail-care-feature__value">{lightRequirement ?? "Not set"}</span>
+              </div>
+              <div className="detail-care-feature">
+                <div className="detail-care-feature__icon-wrap">
+                  <Icon className="detail-care-feature__icon" name="soilIcon" />
+                </div>
+                <span className="eyebrow">Soil</span>
+                <span className="detail-care-feature__value">{soilType ?? "Not set"}</span>
+              </div>
             </div>
-            <div>
-              <dt>Species</dt>
-              <dd>{scientificName}</dd>
+
+            <hr className="detail-divider" />
+
+            <div className="detail-care-bottom-row">
+              <div className="detail-care-feature">
+                <div className="detail-care-feature__icon-wrap">
+                  <Icon className="detail-care-feature__icon" name="flaskFill" />
+                </div>
+                <div className="detail-care-feature__text">
+                  <span className="eyebrow">Fertilizer</span>
+                  <span className="detail-care-feature__value">
+                    {fertilizerIntervalDays ? `Every ${fertilizerIntervalDays} days` : "Not set"}
+                  </span>
+                </div>
+              </div>
+              <div className="detail-care-feature">
+                <div className="detail-care-feature__icon-wrap">
+                  <Icon className="detail-care-feature__icon" name="pawFill" />
+                </div>
+                <div className="detail-care-feature__text">
+                  <span className="eyebrow">Pet toxicity</span>
+                  <span className="detail-care-feature__value">{petToxicLabel}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <dt>Light</dt>
-              <dd>{lightRequirement ?? "Not set"}</dd>
+          </div>
+
+          {careNotes ? (
+            <div className="detail-care-description">
+              <p>{careNotes}</p>
             </div>
-            <div>
-              <dt>Soil</dt>
-              <dd>{soilType ?? "Not set"}</dd>
-            </div>
-            <div>
-              <dt>Pet toxicity</dt>
-              <dd>
-                {petToxic === null ? "Unknown" : petToxic ? "Toxic to pets" : "Pet safe"}
-              </dd>
-            </div>
-            <div>
-              <dt>Fertilizer</dt>
-              <dd>
-                {fertilizerIntervalDays ? `Every ${fertilizerIntervalDays} days` : "Not set"}
-              </dd>
-            </div>
-          </dl>
-          <p className="muted">{careNotes ?? "No care notes saved yet."}</p>
+          ) : null}
         </article>
-        {children}
-      </section>
-    </>
+
+        {/* Schedule */}
+        <div className="detail-schedule-wrap">
+          {scheduleContent}
+        </div>
+
+        {/* Watering Log */}
+        {logContent}
+      </div>
+    </form>
   );
 }
