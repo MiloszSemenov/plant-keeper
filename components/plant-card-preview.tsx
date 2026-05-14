@@ -7,6 +7,7 @@ type PlantCardPreviewProps = {
   imageUrl: string | null;
   scientificName?: string;
   onImageClick: () => void;
+  onClearPhoto?: () => void;
   status: "overdue" | "today" | "upcoming";
   statusLabel: string;
   lastWateredText: string;
@@ -17,29 +18,42 @@ export function PlantCardPreview({
   imageUrl,
   scientificName,
   onImageClick,
+  onClearPhoto,
   status,
   statusLabel,
   lastWateredText,
 }: PlantCardPreviewProps) {
   return (
-    <PlantCardBase
-      actions={
+    <div className="plant-card-preview-wrapper">
+      <PlantCardBase
+        actions={
+          <button
+            className={buttonClassName({ variant: "secondary" })}
+            type="button"
+          >
+            <Icon className="ui-button__icon" name="water" />
+            <span className="ui-button__label">Mark watered</span>
+          </button>
+        }
+        imageUrl={imageUrl}
+        lastWateredText={lastWateredText}
+        name={name}
+        onImageClick={onImageClick}
+        overlayLabel={imageUrl ? "Change photo" : "Add photo"}
+        scientificName={scientificName}
+        status={status}
+        statusLabel={statusLabel}
+      />
+      {onClearPhoto ? (
         <button
-          className={buttonClassName({ variant: "secondary" })}
+          aria-label="Remove uploaded photo"
+          className="plant-card-preview__clear"
+          onClick={onClearPhoto}
           type="button"
         >
-          <Icon className="ui-button__icon" name="water" />
-          <span className="ui-button__label">Mark watered</span>
+          <Icon name="close" />
         </button>
-      }
-      imageUrl={imageUrl}
-      lastWateredText={lastWateredText}
-      name={name}
-      onImageClick={onImageClick}
-      overlayLabel={imageUrl ? "Change photo" : "Add photo"}
-      scientificName={scientificName}
-      status={status}
-      statusLabel={statusLabel}
-    />
+      ) : null}
+    </div>
   );
 }
