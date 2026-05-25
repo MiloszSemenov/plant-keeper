@@ -2,18 +2,22 @@
 
 import { useTransition } from "react";
 import { signIn } from "next-auth/react";
-import { buttonClassName, type ButtonSize } from "@/components/ui/button";
+import { buttonClassName, type ButtonSize, type ButtonVariant } from "@/components/ui/button";
 
 export function SignInButton({
   className,
   size = "md",
+  variant = "primary",
   callbackUrl = "/dashboard",
-  label = "Continue with Google"
+  label = "Continue with Google",
+  showGoogleMark = true
 }: {
   className?: string;
   size?: ButtonSize;
+  variant?: ButtonVariant;
   callbackUrl?: string;
   label?: string;
+  showGoogleMark?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -22,7 +26,7 @@ export function SignInButton({
       className={buttonClassName({
         className,
         size,
-        variant: "primary"
+        variant
       })}
       disabled={isPending}
       onClick={() => {
@@ -32,9 +36,10 @@ export function SignInButton({
       }}
       type="button"
     >
-      <span className="google-mark" aria-hidden="true">
-        G
-      </span>
+      {showGoogleMark ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt="" aria-hidden="true" className="google-mark" src="/icons/google.svg" />
+      ) : null}
       {isPending ? "Connecting..." : label}
     </button>
   );

@@ -3,6 +3,152 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SignInButton } from "@/components/sign-in-button";
 import { buttonClassName } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { PlantCardBase } from "@/components/plant-card-base";
+
+type PlantPreviewItem = {
+  name: string;
+  imagePath: string | null;
+  scheduleLabel: string;
+  lastWateredText: string;
+  status: "overdue" | "today" | "upcoming";
+};
+
+const PLANT_POOL: PlantPreviewItem[] = [
+  {
+    name: "Monstera deliciosa",
+    imagePath: "/plant-images/monstera.jpg",
+    scheduleLabel: "Water in 5 days",
+    lastWateredText: "3 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "Snake Plant",
+    imagePath: "/plant-images/snake-plant.jpg",
+    scheduleLabel: "Water in 10 days",
+    lastWateredText: "4 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "Peace Lily",
+    imagePath: "/plant-images/Spathiphyllum-wallisii.jpg",
+    scheduleLabel: "Water in 2 days",
+    lastWateredText: "5 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "ZZ Plant",
+    imagePath: "/plant-images/Zamia-Calculus.jpg",
+    scheduleLabel: "Water in 14 days",
+    lastWateredText: "today",
+    status: "upcoming",
+  },
+  {
+    name: "Pilea peperomioides",
+    imagePath: "/plant-images/pilea-peperomioides.png",
+    scheduleLabel: "Water in 7 days",
+    lastWateredText: "today",
+    status: "upcoming",
+  },
+  {
+    name: "Pilea involucrata",
+    imagePath: "/plant-images/Pilea-involucrata.jpg",
+    scheduleLabel: "Water in 6 days",
+    lastWateredText: "2 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "Ficus ginseng",
+    imagePath: "/plant-images/ficus-microcarpa.jpg",
+    scheduleLabel: "Water in 8 days",
+    lastWateredText: "yesterday",
+    status: "upcoming",
+  },
+  {
+    name: "Ficus microcarpa",
+    imagePath: "/plant-images/ficus-microcarpa-2.jpg",
+    scheduleLabel: "Water in 9 days",
+    lastWateredText: "3 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "Haworthiopsis attenuata",
+    imagePath: "/plant-images/Haworthiopsis-attenuata.png",
+    scheduleLabel: "Water in 12 days",
+    lastWateredText: "2 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "Phalaenopsis amabilis",
+    imagePath: "/plant-images/Phalaenopsis-amabilis.jpg",
+    scheduleLabel: "Water today",
+    lastWateredText: "7 days ago",
+    status: "today",
+  },
+  {
+    name: "Veronica × andersonii",
+    imagePath: "/plant-images/Veronica-×-andersonii.png",
+    scheduleLabel: "Water in 3 days",
+    lastWateredText: "5 days ago",
+    status: "upcoming",
+  },
+  {
+    name: "Crassula ovata",
+    imagePath: "/plant-images/Crassula-ovata.jpg",
+    scheduleLabel: "Water in 15 days",
+    lastWateredText: "today",
+    status: "upcoming",
+  },
+];
+
+function selectPreviewPlants(pool: PlantPreviewItem[], count: number): PlantPreviewItem[] {
+  const copy = [...pool];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
+}
+
+const pricingPlans = [
+  {
+    name: "Free",
+    price: "$0",
+    interval: "/ month",
+    description: "A quiet start for your first shelf of plants.",
+    cta: "Get started",
+    features: ["Up to 10 plants", "1 space", "Basic care reminders", "Photo notes"]
+  },
+  {
+    name: "Gardener",
+    price: "$4.99",
+    interval: "/ month",
+    description: "Everything you need to keep a shared collection healthy.",
+    cta: "Start free trial",
+    featured: true,
+    features: [
+      "Unlimited plants",
+      "Unlimited spaces",
+      "Smart care reminders",
+      "Plant history and stats",
+      "Priority support"
+    ]
+  },
+  {
+    name: "Botanist",
+    price: "$9.99",
+    interval: "/ month",
+    description: "For plant lovers who want deeper control and insight.",
+    cta: "Start free trial",
+    features: [
+      "Everything in Gardener",
+      "Advanced plant insights",
+      "Custom care schedules",
+      "Early feature access",
+      "VIP support"
+    ]
+  }
+];
 
 export default async function HomePage() {
   const session = await auth();
@@ -11,118 +157,248 @@ export default async function HomePage() {
     redirect("/dashboard");
   }
 
-  return (
-    <main className="landing-shell">
-      <section className="landing-hero">
-        <div className="landing-copy">
-          <p className="eyebrow">Plant Keeper</p>
-          <h1>Plant care that feels clear from day one.</h1>
-          <p className="landing-intro">
-            Log in with Google, create shared spaces, identify plants from photos, and keep
-            watering on track without turning the app into a chore.
-          </p>
-          <div className="landing-actions">
-            <SignInButton label="Get started with Google" size="lg" />
-            <Link
-              className={buttonClassName({
-                size: "lg",
-                variant: "ghost"
-              })}
-              href="#how-it-works"
-            >
-              How it works
-            </Link>
-          </div>
-          <div className="landing-meta">
-            <span>Shared spaces</span>
-            <span>Photo identify</span>
-            <span>Daily reminders</span>
-          </div>
-        </div>
+  const previewPlants = selectPreviewPlants(PLANT_POOL, 6);
 
-        <div className="preview-window panel">
-          <div className="preview-header">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="preview-body">
-            <div className="preview-sidebar">
-              <strong>Spaces</strong>
-              <small>Home Jungle</small>
-              <small>Studio Plants</small>
-              <small>Office Shelf</small>
+  return (
+    <div className="landing-shell">
+      <header className="landing-topbar">
+        <Link className="landing-brand" href="/" aria-label="PlantKeeper home">
+          <span className="landing-brand-mark">
+            <Icon name="leafFill" />
+          </span>
+          <span>PlantKeeper</span>
+        </Link>
+
+        <nav className="landing-nav-links" aria-label="Landing page">
+          <a className="active" href="#product">
+            Product
+          </a>
+          <a href="#collections">Collections</a>
+          <a href="#pricing">Pricing</a>
+        </nav>
+
+        <div className="landing-nav-actions">
+          <SignInButton
+            className="landing-nav-signin"
+            label="Sign in"
+            showGoogleMark={false}
+            size="text"
+            variant="ghost"
+          />
+          <SignInButton
+            className="landing-nav-cta"
+            label="Get started"
+            showGoogleMark={false}
+            size="sm"
+          />
+        </div>
+      </header>
+
+      <main>
+        <section className="landing-hero" id="product">
+          <div className="landing-copy">
+            <p className="eyebrow">The digital arboretum</p>
+            <h1>
+              Care for your plants.<br />
+              Keep growing.
+            </h1>
+            <p className="landing-intro">
+              PlantKeeper helps you organize your collection, remember
+              watering schedules, and create the perfect environment
+              for every plant in your home.
+            </p>
+
+            <div className="landing-actions">
+              <SignInButton
+                className="landing-primary-cta"
+                label="Start your plant journey"
+                showGoogleMark={false}
+                size="lg"
+                variant="primary"
+              />
+              <div className="landing-or-divider" role="separator">
+                <span />
+                <span>or</span>
+                <span />
+              </div>
+              <SignInButton
+                className="landing-google-cta"
+                label="Continue with Google"
+                size="lg"
+                variant="subtle"
+              />
             </div>
-            <div className="preview-content">
-              <div className="preview-summary">
+
+            <div className="landing-proof">
+              <div className="avatar-cluster" aria-hidden="true">
+                <span className="avatar-chip">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt="" className="avatar-chip__image" src="/plant-parents/woman1.jpg" />
+                </span>
+                <span className="avatar-chip">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt="" className="avatar-chip__image" src="/plant-parents/man.png" />
+                </span>
+                <span className="avatar-chip">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt="" className="avatar-chip__image" src="/plant-parents/woman2.png" />
+                </span>
+                <span className="avatar-chip">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img alt="" className="avatar-chip__image" src="/plant-parents/man2.jpg" />
+                </span>
+              </div>
+              <div className="landing-proof-text">
+                <span className="landing-stars" aria-hidden="true">★★★★★</span>
+                <p>Join 10,000+ plant parents</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="landing-preview-wrap" aria-label="PlantKeeper product preview">
+            <div className="landing-dashboard panel">
+              <div className="landing-dashboard-header">
                 <div>
-                  <span>Today</span>
-                  <strong>3</strong>
+                  <p>Upcoming care</p>
+                  <span>12 scheduled</span>
                 </div>
-                <div>
-                  <span>Upcoming</span>
-                  <strong>5</strong>
-                </div>
+                <button className="landing-water-pill" type="button">
+                  <Icon name="water" />
+                  Water all (12)
+                </button>
               </div>
 
-              <article className="preview-plant-card">
-                <div className="preview-plant-media">M</div>
-                <div className="stack-xs">
-                  <strong>Living room Monstera</strong>
-                  <p>Monstera deliciosa</p>
-                  <span className="status-pill status-warning">Water today</span>
-                </div>
-              </article>
+              <div className="landing-plant-grid">
+                {previewPlants.map((plant) => (
+                  <PlantCardBase
+                    key={plant.name}
+                    imageUrl={plant.imagePath}
+                    lastWateredText={plant.lastWateredText}
+                    name={plant.name}
+                    status={plant.status}
+                    statusLabel={plant.scheduleLabel}
+                  />
+                ))}
+              </div>
+            </div>
 
-              <article className="preview-upload-card">
-                <strong>Photo upload</strong>
-                <p>Drop a leaf photo and get species suggestions instantly.</p>
-              </article>
-
-              <article className="preview-reminder-card">
-                <strong>Reminder email</strong>
-                <p>One daily digest with every plant that needs water.</p>
-              </article>
+            <div className="landing-floating-card landing-floating-card--collections">
+              <p className="eyebrow">My collections</p>
+              <div>
+                <span>
+                  <Icon name="leafFill" />
+                  The office
+                </span>
+                <strong>12</strong>
+              </div>
+              <div>
+                <span>
+                  <Icon name="home" />
+                  Home jungle
+                </span>
+                <strong>8</strong>
+              </div>
             </div>
           </div>
+        </section>
+
+        <section className="landing-showcase" id="collections">
+          <div className="landing-showcase-copy">
+            <p className="eyebrow">Collections</p>
+            <h2>All your plants, beautifully organized.</h2>
+            <p>
+              Group your plants into spaces that match your rooms and routines. Everyone sees
+              the same calm view of what needs attention next.
+            </p>
+            <Link className="landing-text-link" href="#product">
+              Explore collections
+              <span aria-hidden="true">-&gt;</span>
+            </Link>
+          </div>
+
+          <div className="landing-showcase-art" aria-label="Collection preview">
+            <div className="landing-collection-card">
+              <Icon name="leafFill" />
+              <div>
+                <strong>Living Room</strong>
+                <p>12 plants</p>
+                <div className="avatar-cluster" aria-hidden="true">
+                  <span className="avatar-chip">M</span>
+                  <span className="avatar-chip avatar-chip--soft">A</span>
+                  <span className="avatar-chip avatar-chip--soft">J</span>
+                  <span className="avatar-chip avatar-chip--count">+2</span>
+                </div>
+              </div>
+            </div>
+            <div className="landing-leaf-shadow" aria-hidden="true" />
+          </div>
+        </section>
+
+        <section className="landing-pricing" id="pricing">
+          <div className="landing-section-heading">
+            <p className="eyebrow">Pricing</p>
+            <h2>Choose the plan that grows with you.</h2>
+            <p>Simple, transparent pricing for every plant parent.</p>
+          </div>
+
+          <div className="landing-pricing-grid">
+            {pricingPlans.map((plan) => (
+              <article
+                className={`landing-price-card${plan.featured ? " landing-price-card--featured" : ""}`}
+                key={plan.name}
+              >
+                {plan.featured ? <p className="landing-price-ribbon">Most popular</p> : null}
+                <div className="landing-price-copy">
+                  <h3>{plan.name}</h3>
+                  <p className="landing-price">
+                    <strong>{plan.price}</strong>
+                    <span>{plan.interval}</span>
+                  </p>
+                  <p>{plan.description}</p>
+                </div>
+                <ul>
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <Icon name="save" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  className={buttonClassName({
+                    className: "landing-price-button",
+                    size: "lg",
+                    variant: plan.featured ? "primary" : "subtle"
+                  })}
+                  href="#"
+                >
+                  {plan.cta}
+                </Link>
+              </article>
+            ))}
+          </div>
+
+          <p className="landing-pricing-note">
+            <Icon name="save" />
+            14-day free trial. Cancel anytime.
+          </p>
+        </section>
+      </main>
+
+      <footer className="landing-footer">
+        <Link className="landing-brand" href="/" aria-label="PlantKeeper home">
+          <span className="landing-brand-mark">
+            <Icon name="leafFill" />
+          </span>
+          <span>PlantKeeper</span>
+        </Link>
+        <p>© 2026 PlantKeeper Inc. Cultivating digital serenity.</p>
+        <div>
+          <Link href="#">Privacy</Link>
+          <Link href="#">Terms</Link>
+          <Link href="#">Github</Link>
         </div>
-      </section>
-
-      <section className="how-grid" id="how-it-works">
-        <article className="panel how-card">
-          <p className="eyebrow">Step 1</p>
-          <h2>Sign in and create your first space.</h2>
-          <p>Home, studio, office shelf. Each space can be private or shared with other people.</p>
-        </article>
-        <article className="panel how-card">
-          <p className="eyebrow">Step 2</p>
-          <h2>Add plants by photo or by name.</h2>
-          <p>Upload a photo for matches, or type a species name and pick it from suggestions.</p>
-        </article>
-        <article className="panel how-card">
-          <p className="eyebrow">Step 3</p>
-          <h2>Water on time and keep everyone synced.</h2>
-          <p>Mark plants as watered, track what is due next, and send one reminder digest per day.</p>
-        </article>
-      </section>
-
-      <section className="feature-grid">
-        <article className="panel feature-card">
-          <p className="eyebrow">Dashboard</p>
-          <h2>See overdue, today, and upcoming at a glance.</h2>
-          <p>No clutter, just the next actions that matter.</p>
-        </article>
-        <article className="panel feature-card">
-          <p className="eyebrow">Plant cards</p>
-          <h2>Keep a photo, name, schedule, and history together.</h2>
-          <p>Each plant keeps a simple record that is easy to share with others.</p>
-        </article>
-        <article className="panel feature-card">
-          <p className="eyebrow">Reminders</p>
-          <h2>Get one daily nudge instead of a flood of notifications.</h2>
-          <p>Useful enough to trust, quiet enough to keep.</p>
-        </article>
-      </section>
-    </main>
+      </footer>
+    </div>
   );
 }

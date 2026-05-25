@@ -17,7 +17,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       className={cn(
         "ui-input",
         icon && "ui-input--with-icon",
-        rightAction && "ui-input--with-right-action",
+        rightAction ? "ui-input--with-right-action" : false,
         containerClassName
       )}
     >

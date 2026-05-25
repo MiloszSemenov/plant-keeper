@@ -4,7 +4,7 @@ import { canManagePlants } from "@/services/vaults";
 import { getVaultPlants } from "@/services/plants";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/empty-state";
-import { PlantCard } from "@/components/plant-card";
+import { PlantCardBase } from "@/components/plant-card-base";
 import { buttonClassName } from "@/components/ui/button";
 
 type PlantsPageProps = {
@@ -51,7 +51,13 @@ export default async function PlantsPage({ searchParams }: PlantsPageProps) {
       {plants.length > 0 ? (
         <section className="plant-grid">
           {plants.map((plant) => (
-            <PlantCard key={plant.id} plant={plant} />
+            <PlantCardBase
+              key={plant.id}
+              imageUrl={plant.imageUrl}
+              mediaHref={`/plant/${plant.id}`}
+              name={plant.nickname}
+              scientificName={plant.species.scientificName}
+            />
           ))}
         </section>
       ) : (

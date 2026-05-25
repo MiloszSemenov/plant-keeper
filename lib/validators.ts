@@ -37,11 +37,13 @@ export const dashboardQuerySchema = z.object({
   vaultId: z.string().uuid()
 });
 
-export const dashboardActionSchema = z.object({
-  vaultId: z.string().uuid(),
-  section: z.enum(["overdue", "today", "upcoming"]),
-  devMode: z.string().optional(),
-  dayOffset: z.string().optional()
+export const waterPlantSchema = z.object({
+  wateredAt: z.string().datetime().optional()
+});
+
+export const waterPlantsSchema = z.object({
+  plantIds: z.array(z.string().uuid()).min(1).max(200),
+  wateredAt: z.string().datetime().optional()
 });
 
 export const updatePlantSchema = z.object({

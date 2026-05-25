@@ -46,8 +46,6 @@ const plantSpeciesSelect = {
   updatedAt: true,
 } as const;
 
-export type DashboardSection = 'overdue' | 'today' | 'upcoming';
-
 function getEffectiveWateringIntervalDays(plant: {
   customWateringIntervalDays: number | null;
   species: {
@@ -735,6 +733,7 @@ async function waterPlantWithRecord(
   tx: Prisma.TransactionClient,
   plant: {
     id: string;
+    vaultId: string;
     customWateringIntervalDays: number | null;
     species: {
       wateringIntervalDays: number;
@@ -757,7 +756,6 @@ async function waterPlantWithRecord(
       species: {
         select: plantSpeciesSelect,
       },
-      vault: true,
     },
   });
 
@@ -771,7 +769,7 @@ async function waterPlantWithRecord(
 
   await tx.activityLog.create({
     data: {
-      vaultId: updatedPlant.vault.id,
+      vaultId: updatedPlant.vaultId,
       userId,
       actionType: 'plant_watered',
       entityType: 'plant',
@@ -779,7 +777,10 @@ async function waterPlantWithRecord(
     },
   });
 
-  return updatedPlant;
+  return {
+    ...updatedPlant,
+    imageUrl: getDisplayPlantImageUrl(updatedPlant),
+  };
 }
 
 export async function createPlant({
@@ -997,50 +998,184 @@ export async function deletePlant(userId: string, plantId: string) {
   };
 }
 
-export async function markPlantWatered(userId: string, plantId: string) {
-  const plant = await getPlantDetail(userId, plantId);
-  const wateredAt = new Date();
+async function getWaterablePlant(userId: string, plantId: string) {
+  const plant = await prisma.plant.findFirst({
+    where: {
+      id: plantId,
+      vault: {
+        memberships: {
+          some: {
+            userId,
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+      vaultId: true,
+      customWateringIntervalDays: true,
+      species: {
+        select: {
+          wateringIntervalDays: true,
+        },
+      },
+    },
+  });
+
+  if (!plant) {
+    throw new ApiError(404, 'Plant not found');
+  }
+
+  return plant;
+}
+
+export async function markPlantWatered(
+  userId: string,
+  plantId: string,
+  options?: {
+    wateredAt?: Date;
+  },
+) {
+  const plant = await getWaterablePlant(userId, plantId);
+  const wateredAt = options?.wateredAt ?? new Date();
 
   return prisma.$transaction((tx) =>
     waterPlantWithRecord(tx, plant, userId, wateredAt),
   );
 }
 
-export async function markDashboardSectionWatered(
-  userId: string,
-  vaultId: string,
-  section: DashboardSection,
-  options?: {
-    now?: Date;
-  },
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
 ) {
-  const dashboard = await getDashboard(userId, vaultId, options);
-  const plantsToWater = dashboard[section];
-  const wateredAt = options?.now ?? new Date();
+  const results: Array<PromiseSettledResult<R>> = new Array(items.length);
+  let cursor = 0;
 
-  if (plantsToWater.length === 0) {
-    return {
-      section,
-      updatedCount: 0,
-      plants: [],
-    };
-  }
+  async function runNext() {
+    const index = cursor;
+    cursor += 1;
 
-  const plants = await prisma.$transaction(async (tx) => {
-    const updatedPlants = [];
-
-    for (const plant of plantsToWater) {
-      updatedPlants.push(
-        await waterPlantWithRecord(tx, plant, userId, wateredAt),
-      );
+    if (index >= items.length) {
+      return;
     }
 
-    return updatedPlants;
+    try {
+      results[index] = {
+        status: 'fulfilled',
+        value: await worker(items[index]),
+      };
+    } catch (error) {
+      results[index] = {
+        status: 'rejected',
+        reason: error,
+      };
+    }
+
+    await runNext();
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => runNext()),
+  );
+
+  return results;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unable to water plant';
+}
+
+export async function markPlantsWatered(
+  userId: string,
+  plantIds: string[],
+  options?: {
+    wateredAt?: Date;
+    concurrency?: number;
+  },
+) {
+  const uniquePlantIds = Array.from(new Set(plantIds));
+  const wateredAt = options?.wateredAt ?? new Date();
+  const concurrency = options?.concurrency ?? 4;
+
+  const plants = await prisma.plant.findMany({
+    where: {
+      id: {
+        in: uniquePlantIds,
+      },
+      vault: {
+        memberships: {
+          some: {
+            userId,
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+      vaultId: true,
+      customWateringIntervalDays: true,
+      species: {
+        select: {
+          wateringIntervalDays: true,
+        },
+      },
+    },
+  });
+  const plantById = new Map(plants.map((plant) => [plant.id, plant]));
+
+  const results = await mapWithConcurrency(uniquePlantIds, concurrency, async (plantId) => {
+    const plant = plantById.get(plantId);
+
+    if (!plant) {
+      throw new ApiError(404, 'Plant not found');
+    }
+
+    const updatedPlant = await prisma.$transaction((tx) =>
+      waterPlantWithRecord(tx, plant, userId, wateredAt),
+    );
+
+    return {
+      plantId,
+      plant: updatedPlant,
+    };
   });
 
-  return {
-    section,
-    updatedCount: plants.length,
-    plants,
-  };
+  return results.reduce<{
+    succeeded: Array<{
+      plantId: string;
+      plant: Awaited<ReturnType<typeof waterPlantWithRecord>>;
+    }>;
+    failed: Array<{
+      plantId: string;
+      error: string;
+    }>;
+  }>(
+    (summary, result, index) => {
+      const plantId = uniquePlantIds[index];
+
+      if (result.status === 'fulfilled') {
+        summary.succeeded.push(result.value);
+      } else {
+        summary.failed.push({
+          plantId,
+          error: getErrorMessage(result.reason),
+        });
+      }
+
+      return summary;
+    },
+    {
+      succeeded: [],
+      failed: [],
+    },
+  );
 }
