@@ -69,12 +69,6 @@ export function AppShell({
       icon: "dashboard",
       label: "Dashboard"
     },
-    {
-      active: currentPath === "/plants",
-      href: currentVaultId ? `/plants?vaultId=${currentVaultId}` : "/plants",
-      icon: "plant",
-      label: "Plants"
-    },
     ...(canManagePlants
       ? [
           {
