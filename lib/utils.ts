@@ -4,6 +4,23 @@ export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+export function getInitials(value?: string | null) {
+  if (!value) {
+    return "?";
+  }
+
+  const parts = value.split(" ").filter(Boolean);
+
+  if (parts.length === 0) {
+    return "?";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export function getPlantStatusLabel(nextWateringAt: Date | string, now = new Date()) {
   const nextDate = typeof nextWateringAt === "string" ? new Date(nextWateringAt) : nextWateringAt;
   const delta = differenceInCalendarDays(nextDate, now);

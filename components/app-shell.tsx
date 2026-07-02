@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Avatar } from "@/components/ui/avatar";
 import { buttonClassName } from "@/components/ui/button";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 type VaultOption = {
   id: string;
@@ -13,19 +14,6 @@ type VaultOption = {
   plantCount: number;
   memberCount: number;
 };
-
-function getInitials(value?: string | null) {
-  if (!value) {
-    return "PK";
-  }
-
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
 
 export function AppShell({
   title,
@@ -40,8 +28,8 @@ export function AppShell({
   sidebarContent,
   children
 }: {
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   userName?: string | null;
   userImageUrl?: string | null;
   currentVaultId?: string;
@@ -162,14 +150,7 @@ export function AppShell({
                 <p className="sidebar-label">Gardeners</p>
                 <div className="gardeners-row">
                   <div className="avatar-cluster" aria-hidden="true">
-                    <span className="avatar-chip">
-                      {userImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img alt={userName ?? "Profile"} className="avatar-chip__image" src={userImageUrl} />
-                      ) : (
-                        getInitials(userName)
-                      )}
-                    </span>
+                    <Avatar imageUrl={userImageUrl} name={userName} />
                     <span className="avatar-chip avatar-chip--soft">{getInitials(currentVault.name)}</span>
                     {remainingGardeners > 0 ? (
                       <span className="avatar-chip avatar-chip--count">+{remainingGardeners}</span>
@@ -201,10 +182,12 @@ export function AppShell({
         <div className="main-area">
           <header className="topbar">
             <div className="topbar-copy">
-              <div>
-                <h1 className="topbar-title">{title}</h1>
-                <p>{description}</p>
-              </div>
+              {(title || description) ? (
+                <div>
+                  {title ? <h1 className="topbar-title">{title}</h1> : null}
+                  {description ? <p>{description}</p> : null}
+                </div>
+              ) : null}
               <Input
                 aria-label="Search collection"
                 className="topbar-search__field"
@@ -217,15 +200,6 @@ export function AppShell({
 
             <div className="topbar-actions">
               {actions}
-              <Link
-                className={buttonClassName({
-                  size: "sm",
-                  variant: "subtle"
-                })}
-                href="/join"
-              >
-                Join space
-              </Link>
               <SignOutButton />
               {/* <span className="topbar-divider" />
               <button

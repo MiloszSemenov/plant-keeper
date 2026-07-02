@@ -45,6 +45,7 @@ export default async function PlantsPage({ searchParams }: PlantsPageProps) {
       currentVaultId={selectedMembership.vault.id}
       description="Browse every plant in the current space without splitting the list into watering sections."
       title="All plants"
+      userImageUrl={user.image}
       userName={user.name}
       vaults={vaults}
     >

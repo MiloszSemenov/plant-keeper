@@ -33,7 +33,8 @@ export function GoogleCalendarDisconnectButton() {
     <div className="stack-xs">
       <button
         className={buttonClassName({
-          variant: "ghost"
+          variant: "ghost",
+          className: "gc-disconnect-btn"
         })}
         disabled={isPending}
         onClick={disconnect}

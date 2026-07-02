@@ -25,6 +25,20 @@ export const createVaultSchema = z.object({
   name: z.string().trim().min(2).max(80)
 });
 
+export const updateVaultSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80).optional(),
+    coverImage: z.string().min(20).optional(),
+    removeCoverImage: z.boolean().optional()
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.coverImage !== undefined ||
+      data.removeCoverImage === true,
+    { message: "Nothing to update" }
+  );
+
 export const createInviteSchema = z.object({
   email: z.string().trim().email().optional().or(z.literal(""))
 });

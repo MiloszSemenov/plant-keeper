@@ -18,7 +18,7 @@ export function GoogleCalendarConnectButton({
   return (
     <button
       className={buttonClassName({
-        className,
+        className: `gc-connect-btn${className ? ` ${className}` : ""}`,
         variant: "primary"
       })}
       disabled={isPending}

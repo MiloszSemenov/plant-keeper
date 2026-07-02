@@ -32,12 +32,19 @@ const iconPaths = {
   clockCounterClockwise: "/icons/clock-counter-clockwise.svg",
   calendarPlus: "/icons/calendar-plus.svg",
   dotsThreeVertical: "/icons/dots-three-vertical.svg",
+  dotsThree: "/icons/dots-three.svg",
+  check: "/icons/check.svg",
   plantFill: "/icons/plant-fill.svg",
   sunFill: "/icons/sun-fill.svg",
   soilIcon: "/icons/soil-icon.svg",
   flaskFill: "/icons/flask-fill.svg",
   pawFill: "/icons/paw-print-fill.svg",
-  userPlusFill: "/icons/user-plus-fill.svg"
+  userPlusFill: "/icons/user-plus-fill.svg",
+  calendarDots: "/icons/calendar-dots.svg",
+  googleCalendar: "/icons/google_calendar_icon.svg",
+  arrowClockwise: "/icons/arrow-clockwise-fill.svg",
+  linkSimple: "/icons/link-simple.svg",
+  clipboard: "/icons/clipboard.svg"
 } as const;
 
 export type IconName = keyof typeof iconPaths;

@@ -284,7 +284,25 @@ export async function getInviteByToken(token: string) {
       token
     },
     include: {
-      vault: true,
+      vault: {
+        include: {
+          _count: {
+            select: {
+              plants: true,
+              memberships: true
+            }
+          },
+          memberships: {
+            include: {
+              user: true
+            },
+            orderBy: {
+              createdAt: "asc"
+            },
+            take: 5
+          }
+        }
+      },
       createdBy: true,
       acceptedBy: true
     }

@@ -113,6 +113,20 @@ export async function getVaultSettings(userId: string, vaultId: string) {
         },
         take: 1
       },
+      // Plants with a photo — used to pick a random cover for the space header.
+      plants: {
+        where: {
+          imageUrl: {
+            not: null
+          }
+        },
+        select: {
+          id: true,
+          nickname: true,
+          imageUrl: true
+        },
+        take: 60
+      },
       _count: {
         select: {
           plants: true
@@ -275,6 +289,48 @@ export async function removeVaultMember({
   return {
     removed: true
   };
+}
+
+export async function updateVaultName({
+  actingUserId,
+  vaultId,
+  name
+}: {
+  actingUserId: string;
+  vaultId: string;
+  name: string;
+}) {
+  await ensureVaultOwner(actingUserId, vaultId);
+
+  return prisma.vault.update({
+    where: {
+      id: vaultId
+    },
+    data: {
+      name: name.trim()
+    }
+  });
+}
+
+export async function updateVaultCoverImage({
+  actingUserId,
+  vaultId,
+  coverImageUrl
+}: {
+  actingUserId: string;
+  vaultId: string;
+  coverImageUrl: string | null;
+}) {
+  await ensureVaultOwner(actingUserId, vaultId);
+
+  return prisma.vault.update({
+    where: {
+      id: vaultId
+    },
+    data: {
+      coverImageUrl
+    }
+  });
 }
 
 export async function deleteOrLeaveVault(userId: string, vaultId: string) {

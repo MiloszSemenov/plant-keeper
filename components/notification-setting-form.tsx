@@ -71,7 +71,7 @@ export function NotificationSettingForm({
       ) : (
         <div className="setting-row">
           <div>
-            <span>{label}</span>
+            <strong>{label}</strong>
             {description ? <p>{description}</p> : null}
           </div>
           <button

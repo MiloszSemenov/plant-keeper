@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { buttonClassName } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Icon } from "@/components/ui/icon";
+
+type ManageableRole = "editor" | "member";
+
+const ROLE_OPTIONS: ManageableRole[] = ["member", "editor"];
 
 export function MemberActions({
   vaultId,
@@ -11,116 +16,134 @@ export function MemberActions({
 }: {
   vaultId: string;
   memberId: string;
-  initialRole: "editor" | "member";
+  initialRole: ManageableRole;
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
-  const [role, setRole] = useState<"editor" | "member">(initialRole);
-  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"main" | "roles">("main");
+  const [role, setRole] = useState<ManageableRole>(initialRole);
   const [isPending, startTransition] = useTransition();
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const roleLabel = role;
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
 
-  function updateRole() {
-    setError(null);
+  // Always reopen on the main view so the slide starts from a known state.
+  useEffect(() => {
+    if (!open) setView("main");
+  }, [open]);
+
+  function selectRole(next: ManageableRole) {
+    setOpen(false);
+    if (next === role) return;
+
+    const previous = role;
+    setRole(next); // optimistic — reflect the new role immediately
 
     startTransition(async () => {
-      const response = await fetch(`/api/vault/${vaultId}/members/${memberId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ role })
-      });
-
-      const payload = await response
-        .json()
-        .catch(() => ({ error: "Unable to update member role" }));
-
-      if (!response.ok) {
-        setError(payload.error ?? "Unable to update member role");
-        return;
+      try {
+        const response = await fetch(`/api/vault/${vaultId}/members/${memberId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: next })
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error ?? "Unable to update member role");
+        }
+        router.refresh();
+      } catch (error) {
+        setRole(previous); // revert the optimistic change
+        toast.error(error instanceof Error ? error.message : "Unable to update member role");
       }
-
-      setIsEditing(false);
-      router.refresh();
     });
   }
 
   function removeMember() {
-    if (!window.confirm("Remove this member from the space?")) {
-      return;
-    }
-
-    setError(null);
+    setOpen(false);
+    if (!window.confirm("Remove this member from the space?")) return;
 
     startTransition(async () => {
-      const response = await fetch(`/api/vault/${vaultId}/members/${memberId}`, {
-        method: "DELETE"
-      });
-
-      const payload = await response.json().catch(() => ({ error: "Unable to remove member" }));
-
-      if (!response.ok) {
-        setError(payload.error ?? "Unable to remove member");
-        return;
+      try {
+        const response = await fetch(`/api/vault/${vaultId}/members/${memberId}`, {
+          method: "DELETE"
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.error ?? "Unable to remove member");
+        }
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to remove member");
       }
-
-      router.refresh();
     });
   }
 
   return (
-    <div className="member-actions">
-      {isEditing ? (
-        <>
-          <select
-            onChange={(event) => setRole(event.target.value as "editor" | "member")}
-            value={role}
-          >
-            <option value="member">Member</option>
-            <option value="editor">Editor</option>
-          </select>
+    <>
+      <div className="member-role-col">
+        <span className="member-role" data-role={role}>
+          {role}
+        </span>
+      </div>
+      <div className="member-actions-col">
+        <div className="member-menu" ref={menuRef}>
           <button
-            className={buttonClassName({
-              variant: "secondary"
-            })}
+            aria-label="Member options"
+            className="member-menu__trigger"
             disabled={isPending}
-            onClick={updateRole}
+            onClick={() => setOpen((value) => !value)}
             type="button"
           >
-            OK
+            <Icon name="dotsThree" />
           </button>
-          <button
-            className={buttonClassName({
-              variant: "danger"
-            })}
-            disabled={isPending}
-            onClick={removeMember}
-            type="button"
-          >
-            X
-          </button>
-        </>
-      ) : (
-        <>
-          <span className="member-role">{roleLabel}</span>
-          <button
-            className={buttonClassName({
-              variant: "ghost"
-            })}
-            disabled={isPending}
-            onClick={() => {
-              setError(null);
-              setIsEditing(true);
-            }}
-            type="button"
-          >
-            Edit
-          </button>
-        </>
-      )}
-      {error ? <p className="field-error">{error}</p> : null}
-    </div>
+          {open ? (
+            <div className="member-menu__dropdown">
+              <div className={`member-menu__track${view === "roles" ? " member-menu__track--roles" : ""}`}>
+                <div aria-hidden={view === "roles"} className="member-menu__panel">
+                  <button
+                    className="member-menu__item"
+                    onClick={() => setView("roles")}
+                    type="button"
+                  >
+                    Change role
+                  </button>
+                  <button
+                    className="member-menu__item member-menu__item--danger"
+                    onClick={removeMember}
+                    type="button"
+                  >
+                    Delete user
+                  </button>
+                </div>
+                <div aria-hidden={view !== "roles"} className="member-menu__panel">
+                  {ROLE_OPTIONS.map((option) => (
+                    <button
+                      className="member-menu__item member-menu__role"
+                      key={option}
+                      onClick={() => selectRole(option)}
+                      type="button"
+                    >
+                      <span>{option}</span>
+                      {role === option ? (
+                        <Icon className="member-menu__check" name="check" />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </>
   );
 }

@@ -29,6 +29,7 @@ export default async function AddPlantPage({ searchParams }: AddPlantPageProps) 
       currentVaultId={selectedMembership.vault.id}
       description=""
       title="Add a plant"
+      userImageUrl={user.image}
       userName={user.name}
       vaults={vaults}
     >

@@ -330,7 +330,7 @@ code {
   color: var(--pk-color-text-primary);
   cursor: pointer;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.01em;
   transition:
     transform var(--pk-transition-fast),
@@ -607,7 +607,6 @@ code {
 .ui-input__field,
 .field input,
 .field select,
-.member-actions select,
 .detail-title-input {
   width: 100%;
   min-height: 2.95rem;
@@ -629,7 +628,6 @@ code {
 .ui-input__field:focus,
 .field input:focus,
 .field select:focus,
-.member-actions select:focus,
 .detail-title-input:focus {
   border-color: var(--pk-color-focus-ring);
   outline: none;
@@ -2366,34 +2364,11 @@ dialog.confirm-dialog::backdrop {
 
 .dev-links,
 .setting-row,
-.member-actions,
-.member-side {
+.setting-row {
   display: flex;
   align-items: center;
-}
-
-.setting-row,
-.member-actions,
-.member-side {
   gap: var(--pk-space-3);
-}
-
-.setting-row {
   justify-content: space-between;
-}
-
-.member-side {
-  align-items: flex-end;
-}
-
-.member-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.member-actions .field-error {
-  width: 100%;
-  margin: 0;
 }
 
 .member-role {
@@ -3651,6 +3626,1441 @@ input[type="search"]::-webkit-search-cancel-button {
   font-weight: 700;
 }
 
+/* ── Settings page ───────────────────────────────────── */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Two-column layout: main settings + right overview/quick-actions rail */
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--pk-space-6);
+  align-items: start;
+}
+
+.settings-main,
+.settings-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-6);
+  min-width: 0;
+}
+
+/* Soft premium card — the shared surface for every settings section */
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-5);
+  background: var(--pk-color-surface-card);
+  border: 1px solid color-mix(in srgb, var(--pk-color-border) 55%, transparent);
+  border-radius: var(--pk-radius-lg);
+  box-shadow: var(--pk-shadow-card);
+  padding: var(--pk-space-7);
+}
+
+.settings-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+}
+
+.settings-card__header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pk-color-text-primary);
+}
+
+.settings-card__header .muted {
+  font-size: 0.9rem;
+  margin-top: var(--pk-space-1);
+}
+
+.settings-section {
+  padding: var(--pk-space-11) 0;
+}
+
+.settings-section:not(:last-child) {
+  border-bottom: 1px solid var(--pk-color-border);
+}
+
+/* Space header — visual hero of the page */
+
+.settings-space-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+  padding-top: var(--pk-space-9);
+  padding-bottom: var(--pk-space-2);
+}
+
+.space-settings-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.space-settings-menu__trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-1);
+  color: var(--pk-color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--pk-radius-min);
+}
+
+.space-settings-menu__trigger:hover {
+  color: var(--pk-color-text-primary);
+  background: var(--pk-color-surface-section);
+}
+
+.space-settings-menu__trigger .ui-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.space-settings-menu__dropdown {
+  position: absolute;
+  top: calc(100% + var(--pk-space-1));
+  right: 0;
+  background: var(--pk-color-surface-card);
+  border: 1px solid var(--pk-color-border);
+  border-radius: var(--pk-radius-sm);
+  box-shadow: var(--pk-shadow-hover);
+  min-width: 160px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.space-settings-menu__item {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-3) var(--pk-space-4);
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.space-settings-menu__item--danger {
+  color: var(--pk-color-tone-danger);
+}
+
+.space-settings-menu__item--danger:hover {
+  background: var(--pk-color-tone-danger-surface);
+}
+
+/* Member row kebab menu — sliding two-view dropdown (actions ⇄ roles) */
+
+.member-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.member-menu__trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-1);
+  color: var(--pk-color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--pk-radius-min);
+}
+
+.member-menu__trigger:hover {
+  color: var(--pk-color-text-primary);
+  background: var(--pk-color-surface-section);
+}
+
+.member-menu__trigger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.member-menu__trigger .ui-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.member-menu__dropdown {
+  position: absolute;
+  top: calc(100% + var(--pk-space-1));
+  right: 0;
+  width: 180px;
+  background: var(--pk-color-surface-card);
+  border: 1px solid var(--pk-color-border);
+  border-radius: var(--pk-radius-sm);
+  box-shadow: var(--pk-shadow-hover);
+  z-index: 100;
+  overflow: hidden; /* clips the off-screen panel while it slides */
+}
+
+.member-menu__track {
+  display: flex;
+  width: 200%;
+  transition: transform var(--pk-transition-base);
+}
+
+.member-menu__track--roles {
+  transform: translateX(-50%);
+}
+
+.member-menu__panel {
+  flex: 0 0 50%; /* each panel fills the dropdown; track holds two side by side */
+  display: flex;
+  flex-direction: column;
+}
+
+.member-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-3);
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-3) var(--pk-space-4);
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--pk-color-text-primary);
+}
+
+.member-menu__item:hover {
+  background: var(--pk-color-surface-section);
+}
+
+.member-menu__item--danger {
+  color: var(--pk-color-tone-danger);
+}
+
+.member-menu__item--danger:hover {
+  background: var(--pk-color-tone-danger-surface);
+}
+
+.member-menu__role {
+  text-transform: capitalize;
+}
+
+.member-menu__check {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--pk-color-text-primary);
+  flex-shrink: 0;
+}
+
+.settings-space-name {
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  color: var(--pk-color-primary);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.settings-space-meta {
+  font-size: 1rem;
+  margin-top: var(--pk-space-1);
+  font-weight: 500;
+}
+
+/* Inline space-name edit (pencil → input) */
+
+.space-name-display {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-3);
+}
+
+.space-name-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-1);
+  color: var(--pk-color-text-muted);
+  border-radius: var(--pk-radius-min);
+  transition: color var(--pk-transition-base), background-color var(--pk-transition-base);
+}
+
+.space-name-edit-btn:hover {
+  color: var(--pk-color-text-primary);
+  background: var(--pk-color-surface-section);
+}
+
+.space-name-edit-btn .ui-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.space-name-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-2);
+}
+
+.space-name-input {
+  font-family: var(--pk-font-body);
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+  color: var(--pk-color-primary);
+  width: min(100%, 22ch);
+  padding: 0.1rem 0.5rem;
+  background: var(--pk-color-surface-section);
+  border: 1px solid var(--pk-color-surface-muted);
+  border-radius: var(--pk-radius-sm);
+}
+
+.space-name-input:focus {
+  border-color: var(--pk-color-focus-ring);
+  outline: none;
+}
+
+.space-name-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-1);
+  color: var(--pk-color-text-muted);
+  border-radius: var(--pk-radius-min);
+}
+
+.space-name-action:hover {
+  color: var(--pk-color-text-primary);
+  background: var(--pk-color-surface-section);
+}
+
+.space-name-action--save:hover {
+  color: var(--pk-color-primary);
+}
+
+.space-name-action:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.space-name-action .ui-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+/* Section layout */
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-4);
+}
+
+.settings-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+}
+
+.settings-section-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-3);
+}
+
+.settings-section-header h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pk-color-text-primary);
+  margin: 0;
+}
+
+.settings-section-header .muted {
+  font-size: 0.92rem;
+}
+
+/* Rows container: white card — this is what separates "flat document" from polished sections */
+
+.settings-rows {
+  background: var(--pk-color-surface-card);
+  border: 1px solid var(--pk-color-border);
+  border-radius: var(--pk-radius-md);
+  overflow: hidden;
+}
+
+/* Individual rows: horizontal padding keeps content inset from card edges */
+
+.settings-row {
+  padding: var(--pk-space-5) var(--pk-space-5);
+  border-bottom: 1px solid color-mix(in srgb, var(--pk-color-border) 50%, transparent);
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+/* Flat variant — transparent table with horizontal separators only, no outer card */
+
+.settings-rows--flat {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.settings-rows--flat .settings-row {
+  padding: var(--pk-space-5) 0;
+}
+
+/* Member column header row — grid mirrors the 3-column member rows below it */
+
+.settings-member-header {
+  display: grid;
+  grid-template-columns: 3fr 1fr 1fr;
+  align-items: center;
+  gap: var(--pk-space-4);
+  padding-top: var(--pk-space-2);
+  padding-bottom: var(--pk-space-2);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--pk-color-text-muted);
+  background: transparent;
+}
+
+.settings-member-header span:last-child {
+  text-align: end;
+}
+
+/* Member avatar + name */
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-4);
+  min-width: 0;
+  flex: 1;
+}
+
+.member-info .avatar-chip {
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  font-size: 0.75rem;
+}
+
+/* Settings page overrides */
+
+.settings-page .member-info .avatar-chip {
+  width: 2.8rem;
+  height: 2.8rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.settings-page .member-info strong {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.settings-page .member-info .muted {
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+}
+
+/* Member rows: flex row — avatar/name grow, role pill + kebab sit right */
+
+.settings-member-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-page .member-row {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-4);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--pk-space-4) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--pk-color-border) 45%, transparent);
+}
+
+.settings-member-list .member-row:first-child {
+  padding-top: 0;
+}
+
+.settings-member-list .member-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.member-role-col {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.member-actions-col {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--pk-space-2);
+}
+
+/* Role badge — color-coded per role (owner green / editor blue / member amber) */
+
+.settings-page .member-role {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.6rem;
+  background: color-mix(in srgb, var(--pk-color-border) 60%, transparent);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  color: var(--pk-color-text-secondary);
+}
+
+.settings-page .member-role[data-role="owner"] {
+  background: color-mix(in srgb, var(--pk-color-primary) 16%, transparent);
+  color: var(--pk-color-primary);
+}
+
+.settings-page .member-role[data-role="editor"] {
+  background: var(--pk-color-tone-info-surface);
+  color: var(--pk-color-tone-info);
+}
+
+.settings-page .member-role[data-role="member"] {
+  background: var(--pk-color-tone-warning-surface);
+  color: var(--pk-color-tone-warning);
+}
+
+/* Invite list: stacked rows with hairline separators inside the card */
+
+.settings-invite-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-invite-list .settings-invite-item {
+  padding: var(--pk-space-4) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--pk-color-border) 45%, transparent);
+}
+
+.settings-invite-list .settings-invite-item:first-child {
+  padding-top: 0;
+}
+
+.settings-invite-list .settings-invite-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.settings-invite-empty {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/*
+ * Invite row: stacked, scannable layout — identity (email + status) over the meta,
+ * with the delete action centered on the right. Shared by the settings list and the
+ * "View all invite links" modal so info stays grouped instead of strung across the row.
+ */
+
+.settings-invite-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "identity actions"
+    "meta actions";
+  align-items: start;
+  column-gap: var(--pk-space-4);
+  row-gap: var(--pk-space-1);
+}
+
+.settings-rows--flat .settings-invite-item {
+  padding: var(--pk-space-3) 0;
+}
+
+.settings-invite-item:last-child {
+  border-bottom: none;
+}
+
+.settings-invite-item > .ui-button {
+  grid-area: actions;
+  align-self: center;
+}
+
+.settings-invite-item__identity {
+  grid-area: identity;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--pk-space-3);
+}
+
+.settings-invite-item__identity strong {
+  font-weight: 600;
+}
+
+.settings-invite-item .status-pill {
+  border-radius: 6px;
+  font-weight: 600;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.settings-invite-item .status-success {
+  background: #d6f0d0;
+  color: #2a5c25;
+}
+
+.settings-invite-item .status-neutral {
+  background: #e8e3da;
+  color: #6b5f52;
+}
+
+.settings-invite-item__meta {
+  grid-area: meta;
+  font-size: 0.88rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--pk-space-1) var(--pk-space-5);
+  line-height: 1.45;
+}
+
+.settings-invite-item__meta p {
+  margin: 0;
+}
+
+/* "View all" row inside invite card */
+
+.settings-view-all-row {
+  background: transparent;
+  border-bottom: none;
+}
+
+.settings-view-all-link {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--pk-color-primary);
+  text-decoration: none;
+}
+
+.settings-view-all-link:hover {
+  text-decoration: underline;
+}
+
+/* "View all invite links" modal */
+
+dialog.invites-dialog {
+  padding: 0;
+  border: 0;
+  border-radius: var(--pk-radius-lg);
+  background: var(--pk-color-surface-card);
+  box-shadow: var(--pk-shadow-hover);
+  width: min(640px, calc(100vw - 2rem));
+  max-width: min(640px, calc(100vw - 2rem));
+  color: var(--pk-color-text-primary);
+}
+
+dialog.invites-dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+.invites-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+  padding: var(--pk-space-5) var(--pk-space-6);
+  border-bottom: 1px solid var(--pk-color-border);
+}
+
+.invites-dialog__header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.invites-dialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--pk-space-1);
+  color: var(--pk-color-text-muted);
+  border-radius: var(--pk-radius-min);
+}
+
+.invites-dialog__close:hover {
+  color: var(--pk-color-text-primary);
+  background: var(--pk-color-surface-section);
+}
+
+.invites-dialog__close .ui-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.invites-dialog__list {
+  padding: var(--pk-space-2) var(--pk-space-6);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.invites-dialog__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+  padding: var(--pk-space-4) var(--pk-space-6);
+  border-top: 1px solid var(--pk-color-border);
+}
+
+.invites-dialog__pagination span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--pk-color-text-muted);
+}
+
+/* Google Calendar connected state */
+
+.gc-connected-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pk-space-1);
+  font-weight: 600;
+  color: var(--pk-color-primary);
+  line-height: 1;
+}
+
+.gc-connected-label .ui-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+
+.gc-disconnect-btn {
+  border: 1px solid var(--pk-color-border);
+  border-radius: var(--pk-radius-min);
+  padding: var(--pk-space-2) var(--pk-space-5) !important;
+  color: var(--pk-color-text-primary);
+  font-weight: 500;
+  margin-left: var(--pk-space-5);
+}
+
+.gc-disconnect-btn:hover:not(:disabled) {
+  background: var(--pk-color-surface-section);
+  text-decoration: none !important;
+}
+
+.gc-connect-btn {
+  background: var(--pk-color-tone-info);
+}
+
+/* Preference rows */
+
+.preference-row {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-7);
+}
+
+.preference-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--pk-radius-sm);
+  background: var(--pk-color-surface-section);
+  flex-shrink: 0;
+  font-size: 1.05rem;
+}
+
+.preference-icon .ui-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  background: var(--pk-color-primary);
+}
+
+.preference-icon img {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/* Give NotificationSettingForm full width inside preference row */
+
+.preference-row .stack-sm {
+  flex: 1;
+  gap: 0;
+}
+
+.preference-row .setting-row,
+.preference-setting-row {
+  flex: 1;
+  gap: var(--pk-space-5);
+  min-width: 0;
+}
+
+/* Keep the description text block from crowding the actions */
+.preference-setting-row > div:first-child {
+  min-width: 0;
+}
+
+/* Connected status + Disconnect stay on one line, aligned right */
+.preference-setting-row .inline-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  gap: var(--pk-space-4);
+}
+
+.preference-setting-row .gc-disconnect-btn {
+  margin-left: 0;
+}
+
+/* Danger action row */
+
+.settings-danger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+  flex-wrap: wrap;
+}
+
+.settings-danger-title {
+  color: var(--pk-color-text-primary);
+}
+
+/* More actions — visual separation above section */
+
+.settings-section--more-actions {
+  padding-top: var(--pk-space-4);
+  margin-top: var(--pk-space-2);
+}
+
+/* Invite member action — button that drops down the InviteForm */
+
+.invite-member-action {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.invite-member-panel {
+  position: absolute;
+  top: calc(100% + var(--pk-space-2));
+  right: 0;
+  background: var(--pk-color-surface-card);
+  border: 1px solid var(--pk-color-border);
+  border-radius: var(--pk-radius-md);
+  padding: var(--pk-space-5);
+  min-width: 320px;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Invite link field — read-only URL with regenerate + copy actions */
+
+.invite-link-field {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-1);
+  width: 100%;
+  background: var(--pk-color-surface-section);
+  border: 1px solid var(--pk-color-border);
+  border-radius: var(--pk-radius-md);
+  padding: var(--pk-space-1) var(--pk-space-2) var(--pk-space-1) var(--pk-space-4);
+}
+
+.invite-link-field__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--pk-color-text-secondary);
+  font-family: var(--pk-font-body);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+}
+
+.invite-link-field__input:focus {
+  outline: none;
+}
+
+.invite-link-field__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--pk-color-text-muted);
+  border-radius: var(--pk-radius-sm);
+  transition: color var(--pk-transition-base), background-color var(--pk-transition-base);
+}
+
+.invite-link-field__action:hover:not(:disabled) {
+  color: var(--pk-color-text-primary);
+  background: var(--pk-color-surface-card);
+}
+
+.invite-link-field__action:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.invite-link-field__action--copied,
+.invite-link-field__action--copied:hover:not(:disabled) {
+  color: var(--pk-color-primary);
+}
+
+.invite-link-field__action .ui-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.invite-link-field__spin {
+  animation: pk-spin 0.8s linear infinite;
+}
+
+@keyframes pk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes tooltip-popup-centered {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Invite form — "Invite sent!" tooltip bubble */
+
+.invite-form-input-wrap {
+  position: relative;
+}
+
+.invite-sent-feedback {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 60%;
+  transform: translateX(-50%);
+  background: var(--pk-color-primary);
+  color: var(--pk-color-on-dark);
+  padding: var(--pk-space-2) var(--pk-space-4);
+  border-radius: var(--pk-radius-sm);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  animation: tooltip-popup-centered 0.15s ease-out;
+}
+
+.invite-sent-feedback::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--pk-color-primary);
+  border-bottom: none;
+}
+
+/* Space header card */
+
+.settings-space-card {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--pk-space-5);
+}
+
+.settings-space-card__avatar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 6.25rem;
+  height: 6.25rem;
+  border-radius: var(--pk-radius-pill);
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--pk-color-primary) 18%, var(--pk-color-surface-card)),
+    color-mix(in srgb, var(--pk-color-primary) 6%, var(--pk-color-surface-card))
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pk-color-primary) 14%, transparent);
+}
+
+.settings-space-card__avatar .ui-icon {
+  width: 3.25rem;
+  height: 3.25rem;
+  background: var(--pk-color-primary);
+}
+
+/* Photo cover fills the circle */
+.settings-space-card__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.settings-space-card__avatar.is-uploading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Edit affordances anchored to the bottom edge of the avatar */
+.settings-space-card__avatar-actions {
+  position: absolute;
+  right: -0.25rem;
+  bottom: -0.25rem;
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-1);
+}
+
+.settings-space-card__avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--pk-radius-pill);
+  background: var(--pk-color-primary);
+  color: var(--pk-color-on-dark);
+  border: 2px solid var(--pk-color-surface-card);
+  box-shadow: var(--pk-shadow-card);
+  cursor: pointer;
+  transition: background-color var(--pk-transition-base), transform var(--pk-transition-base);
+}
+
+.settings-space-card__avatar-btn:hover:not(:disabled) {
+  background: var(--pk-color-primary-variant);
+  transform: translateY(-1px);
+}
+
+.settings-space-card__avatar-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.settings-space-card__avatar-btn--reset {
+  background: var(--pk-color-surface-card);
+  color: var(--pk-color-text-secondary);
+}
+
+.settings-space-card__avatar-btn--reset:hover:not(:disabled) {
+  background: var(--pk-color-surface-section);
+  color: var(--pk-color-text-primary);
+}
+
+.settings-space-card__avatar-btn .ui-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  background: currentColor;
+}
+
+.settings-space-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-2);
+}
+
+/* Scale the space-name heading down to fit the card */
+.settings-space-card .settings-space-name {
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
+}
+
+.settings-space-card .space-name-input {
+  font-size: 1.7rem;
+}
+
+.settings-space-meta {
+  font-size: 0.95rem;
+  margin: 0;
+  color: var(--pk-color-text-muted);
+  font-weight: 500;
+}
+
+.settings-space-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--pk-space-2) var(--pk-space-4);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: var(--pk-space-1);
+}
+
+.settings-space-status__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pk-space-2);
+  color: var(--pk-color-primary);
+}
+
+.settings-space-status__item .ui-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  background: var(--pk-color-primary);
+}
+
+.settings-space-status__item img {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.settings-space-status__sep {
+  color: var(--pk-color-border);
+}
+
+.settings-space-card .space-settings-menu {
+  align-self: flex-start;
+}
+
+/* Invite link panel — labeled field + green copy CTA + subtle regenerate */
+
+.invite-link-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-2);
+}
+
+.invite-link-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--pk-space-3);
+}
+
+.invite-link-box {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  background: var(--pk-color-surface-section);
+  border: 1px solid color-mix(in srgb, var(--pk-color-border) 60%, transparent);
+  border-radius: var(--pk-radius-md);
+  padding: var(--pk-space-3) var(--pk-space-4);
+}
+
+.invite-link-box__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pk-color-text-muted);
+}
+
+.invite-link-box__input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--pk-color-text-muted);
+  font-family: var(--pk-font-body);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invite-link-box__input:focus {
+  outline: none;
+}
+
+.invite-copy-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.invite-copy-btn--copied {
+  background: var(--pk-color-primary);
+}
+
+.invite-regenerate {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pk-space-2);
+  background: none;
+  border: none;
+  padding: var(--pk-space-1) 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--pk-color-text-muted);
+  transition: color var(--pk-transition-base);
+}
+
+.invite-regenerate:hover:not(:disabled) {
+  color: var(--pk-color-text-primary);
+}
+
+.invite-regenerate:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.invite-regenerate .ui-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* Preferences list */
+
+.settings-preference-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-6);
+}
+
+/* Right rail — Space overview */
+
+.settings-overview {
+  position: relative;
+  overflow: hidden;
+}
+
+.overview-tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--pk-space-3);
+}
+
+.overview-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-3);
+  padding: var(--pk-space-3);
+  border-radius: var(--pk-radius-md);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--pk-color-border) 26%, transparent);
+}
+
+.overview-tile__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--pk-radius-sm);
+  background: color-mix(in srgb, var(--pk-color-primary) 7%, transparent);
+}
+
+.overview-tile__icon .ui-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  background: color-mix(in srgb, var(--pk-color-primary) 78%, transparent);
+}
+
+.overview-tile__body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.overview-tile__body strong {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--pk-color-text-primary);
+}
+
+.overview-tile__body span,
+.overview-tile__label {
+  font-size: 0.85rem;
+  color: var(--pk-color-text-muted);
+  font-weight: 500;
+}
+
+.settings-overview__accent {
+  position: absolute;
+  right: -0.75rem;
+  bottom: -1.25rem;
+  pointer-events: none;
+  opacity: 0.08;
+}
+
+.settings-overview__accent .ui-icon {
+  width: 7rem;
+  height: 7rem;
+  background: var(--pk-color-primary);
+}
+
+/* Right rail — Quick actions */
+
+.settings-quick-actions__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-3);
+}
+
+.settings-quick-actions__list > .ui-button,
+.settings-quick-actions__list .invite-member-action {
+  width: 100%;
+}
+
+.settings-quick-actions__list .invite-member-action > .ui-button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Invite member reads as an outline/secondary action, not a second heavy CTA */
+.settings-quick-actions__list .invite-member-action > .ui-button--subtle {
+  background: var(--pk-color-surface-card);
+  border: 1px solid var(--pk-color-border);
+  color: var(--pk-color-text-primary);
+}
+
+.settings-quick-actions__list .invite-member-action > .ui-button--subtle:hover:not(:disabled) {
+  background: var(--pk-color-surface-section);
+}
+
+/* Responsive */
+
+@media (max-width: 1080px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-aside {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .settings-aside > .settings-card {
+    flex: 1 1 280px;
+  }
+}
+
+@media (max-width: 720px) {
+  .settings-space-card {
+    flex-wrap: wrap;
+  }
+
+  .settings-space-card__avatar {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+
+  .settings-space-card__avatar .ui-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+
+  .settings-aside {
+    flex-direction: column;
+  }
+
+  .invite-link-row {
+    flex-direction: column;
+  }
+
+  .invite-link-box {
+    max-width: none;
+  }
+
+  .invite-copy-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .preference-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .preference-icon {
+    display: none;
+  }
+
+  .settings-danger-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-rows--flat .settings-row {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .settings-page .member-row,
+  .settings-member-header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .member-actions-col {
+    display: none;
+  }
+
+  .invite-member-panel {
+    min-width: 0;
+    width: calc(100vw - var(--pk-space-8));
+    right: auto;
+    left: 0;
+  }
+}
+
 @media (max-width: 1080px) {
   .landing-topbar {
     grid-template-columns: 1fr auto;
@@ -3959,10 +5369,6 @@ input[type="search"]::-webkit-search-cancel-button {
     display: none;
   }
 
-  .member-actions {
-    justify-content: flex-start;
-  }
-
   .plant-card-media {
     min-height: 220px;
   }
@@ -4009,4 +5415,202 @@ input[type="search"]::-webkit-search-cancel-button {
     transparent 20%
   );
   pointer-events: none;
+}
+
+/* ── Space invite landing (/invite/[token]) ─────────────── */
+
+.invite-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pk-space-8) var(--pk-space-4);
+  background:
+    radial-gradient(
+      120% 110% at 50% -10%,
+      color-mix(in srgb, var(--pk-color-primary) 14%, transparent),
+      transparent 55%
+    ),
+    var(--pk-color-surface-section);
+}
+
+.invite-card {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--pk-space-5);
+  padding: var(--pk-space-9) var(--pk-space-8);
+  background: var(--pk-color-surface-card);
+  border-radius: var(--pk-radius-xl);
+  box-shadow: var(--pk-shadow-hover);
+}
+
+.invite-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pk-space-2);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--pk-color-primary);
+}
+
+.invite-brand__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--pk-radius-md);
+  background: color-mix(in srgb, var(--pk-color-primary) 12%, transparent);
+}
+
+.invite-brand__mark .ui-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  color: var(--pk-color-primary);
+}
+
+.invite-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pk-space-2);
+}
+
+.invite-card__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  color: var(--pk-color-text-primary);
+}
+
+.invite-card__space {
+  color: var(--pk-color-primary);
+}
+
+.invite-card__lead {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--pk-color-text-secondary);
+}
+
+.invite-inviter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pk-space-2);
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--pk-color-text-secondary);
+}
+
+.invite-inviter strong {
+  color: var(--pk-color-text-primary);
+  font-weight: 600;
+}
+
+.invite-space-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pk-space-3);
+  width: 100%;
+  padding: var(--pk-space-5) 0;
+  border-top: 1px solid var(--pk-color-border);
+  border-bottom: 1px solid var(--pk-color-border);
+}
+
+.invite-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--pk-space-2);
+}
+
+.invite-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pk-space-2);
+  padding: var(--pk-space-2) var(--pk-space-4);
+  border-radius: var(--pk-radius-pill);
+  background: var(--pk-color-surface-section);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--pk-color-text-secondary);
+}
+
+.invite-stat .ui-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--pk-color-primary);
+}
+
+.invite-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pk-space-2);
+  width: 100%;
+}
+
+.invite-actions .ui-button {
+  width: 100%;
+}
+
+.invite-actions .ui-button--ghost {
+  width: auto;
+  color: var(--pk-color-text-muted);
+  font-weight: 600;
+}
+
+.invite-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pk-space-2);
+  width: 100%;
+  padding: var(--pk-space-3) var(--pk-space-4);
+  border-radius: var(--pk-radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.invite-status .ui-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.invite-status--success {
+  background: var(--pk-color-tone-success-surface);
+  color: var(--pk-color-tone-success);
+}
+
+.invite-status--error {
+  background: var(--pk-color-tone-danger-surface);
+  color: var(--pk-color-tone-danger);
+}
+
+.invite-state-icon {
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border-radius: var(--pk-radius-pill);
+  background: var(--pk-color-surface-section);
+  color: var(--pk-color-text-muted);
+}
+
+.invite-state-icon .ui-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.invite-meta {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--pk-color-text-muted);
 }

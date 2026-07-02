@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/time";
 import { getPlantDetail } from "@/services/plants";
 import { PlantDetailEditor } from "@/components/plant-detail-editor";
 import { PlantTopbar } from "@/components/plant-topbar";
+import { Avatar } from "@/components/ui/avatar";
 import { Icon } from "@/components/ui/icon";
 import { buttonClassName } from "@/components/ui/button";
 
@@ -133,9 +134,11 @@ export default async function PlantPage({ params }: PlantPageProps) {
                 <div className="stack-sm">
                   {plant.vault.memberships.map((membership) => (
                     <div className="detail-member-row" key={membership.user.id}>
-                      <div className="avatar-chip">
-                        {(membership.user.name ?? membership.user.email).slice(0, 1).toUpperCase()}
-                      </div>
+                      <Avatar
+                        email={membership.user.email}
+                        imageUrl={membership.user.image}
+                        name={membership.user.name}
+                      />
                       <div className="detail-member-info">
                         <strong>{membership.user.name ?? membership.user.email}</strong>
                         <span className="muted">{getRoleLabel(membership.role)}</span>
