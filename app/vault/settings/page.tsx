@@ -17,6 +17,7 @@ import { GoogleCalendarDisconnectButton } from "@/components/google-calendar-dis
 import { buttonClassName } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
+import { pluralize } from "@/lib/utils";
 import { Icon } from "@/components/ui/icon";
 import {
   getGoogleCalendarIntegration,
@@ -112,7 +113,7 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
                   />
                 </div>
                 <p className="settings-space-meta">
-                  {plantCount} plants · {memberCount} members
+                  {pluralize(plantCount, "plant")} · {pluralize(memberCount, "member")}
                 </p>
                 <div className="settings-space-status">
                   <span className="settings-space-status__item">

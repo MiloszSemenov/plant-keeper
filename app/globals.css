@@ -1913,6 +1913,16 @@ dialog.confirm-dialog::backdrop {
   align-items: center;
 }
 
+.detail-autosave-state {
+  color: var(--pk-color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.detail-autosave-state--error {
+  color: var(--pk-color-tone-danger);
+}
+
 .detail-left-col .detail-save-row .ui-button {
   background: none;
   box-shadow: none;
@@ -2655,7 +2665,8 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 .add-plant-suggestions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: var(--pk-space-6);
 }
 
@@ -5165,7 +5176,27 @@ dialog.invites-dialog::backdrop {
     font-size: 2.85rem;
   }
 
+  /* Compact product preview on phones: 2×2 card grid, no floating overlay */
   .landing-preview-wrap {
+    width: 100%;
+    padding: var(--pk-space-2) 0;
+  }
+
+  .landing-plant-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+  }
+
+  .landing-plant-grid > *:nth-child(n + 5) {
+    display: none;
+  }
+
+  .landing-plant-grid .plant-card-media {
+    height: 180px;
+    min-height: 180px;
+  }
+
+  .landing-floating-card {
     display: none;
   }
 
@@ -5387,6 +5418,43 @@ dialog.invites-dialog::backdrop {
 
   .add-plant-footer .ui-button {
     width: 100%;
+  }
+
+  /* Compact stacked sidebar: horizontal nav, tighter rhythm */
+  .sidebar {
+    position: static;
+    max-height: none;
+    padding: var(--pk-space-5) var(--pk-space-4);
+    border-radius: var(--pk-radius-lg);
+  }
+
+  .nav-links {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-links .nav-link {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .sidebar-stack {
+    margin-top: var(--pk-space-5);
+  }
+
+  .sidebar-gardeners {
+    display: none;
+  }
+
+  /* A tall stacked topbar shouldn't stay pinned on small screens */
+  .topbar {
+    position: static;
+  }
+
+  /* Care profile: 3-across is too cramped on phones */
+  .detail-care-top-row,
+  .detail-care-bottom-row {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 .plant-card-preview__media {

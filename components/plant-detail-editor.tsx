@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, ChangeEvent, useState, useTransition } from "react";
+import { ReactNode, ChangeEvent, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buttonClassName } from "@/components/ui/button";
@@ -61,14 +61,86 @@ export function PlantDetailEditor({
   const [imageName, setImageName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
+  const [autosaveState, setAutosaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedRef = useRef({
+    nickname: initialNickname,
+    wateringIntervalDays: initialWateringIntervalDays
+  });
+
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+      if (savedStateTimerRef.current) clearTimeout(savedStateTimerRef.current);
+    };
+  }, []);
+
+  function cancelPendingAutosave() {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+  }
+
+  function scheduleAutosave(next: { nickname: string; wateringIntervalDays: number }) {
+    cancelPendingAutosave();
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void autosave(next);
+    }, 900);
+  }
+
+  async function autosave(next: { nickname: string; wateringIntervalDays: number }) {
+    const trimmedNickname = next.nickname.trim();
+
+    if (!trimmedNickname) {
+      return;
+    }
+
+    if (
+      trimmedNickname === lastSavedRef.current.nickname &&
+      next.wateringIntervalDays === lastSavedRef.current.wateringIntervalDays
+    ) {
+      return;
+    }
+
+    setAutosaveState("saving");
+
+    const response = await fetch(`/api/plants/${plantId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nickname: trimmedNickname,
+        wateringIntervalDays: next.wateringIntervalDays
+      })
+    }).catch(() => null);
+
+    if (!response?.ok) {
+      setAutosaveState("error");
+      return;
+    }
+
+    lastSavedRef.current = {
+      nickname: trimmedNickname,
+      wateringIntervalDays: next.wateringIntervalDays
+    };
+    setAutosaveState("saved");
+    router.refresh();
+
+    if (savedStateTimerRef.current) clearTimeout(savedStateTimerRef.current);
+    savedStateTimerRef.current = setTimeout(() => setAutosaveState("idle"), 2000);
+  }
 
   function resetEditor() {
-    setNickname(initialNickname);
-    setWateringIntervalDays(initialWateringIntervalDays);
+    cancelPendingAutosave();
+    setNickname(lastSavedRef.current.nickname);
+    setWateringIntervalDays(lastSavedRef.current.wateringIntervalDays);
     setImage(undefined);
     setImageName(null);
     setPreviewUrl(initialImageUrl);
     setError(null);
+    setAutosaveState("idle");
   }
 
   async function onImageChange(event: ChangeEvent<HTMLInputElement>) {
@@ -95,6 +167,7 @@ export function PlantDetailEditor({
   function saveChanges(event: { preventDefault(): void }) {
     event.preventDefault();
     setError(null);
+    cancelPendingAutosave();
 
     startSaving(async () => {
       const response = await fetch(`/api/plants/${plantId}`, {
@@ -110,6 +183,8 @@ export function PlantDetailEditor({
         return;
       }
 
+      lastSavedRef.current = { nickname: nickname.trim(), wateringIntervalDays };
+      setAutosaveState("idle");
       setIsEditing(false);
       router.refresh();
     });
@@ -185,7 +260,11 @@ export function PlantDetailEditor({
             {isEditing ? (
               <input
                 className="detail-title-input"
-                onChange={(e) => { setNickname(e.target.value); setError(null); }}
+                onChange={(e) => {
+                  setNickname(e.target.value);
+                  setError(null);
+                  scheduleAutosave({ nickname: e.target.value, wateringIntervalDays });
+                }}
                 required
                 value={nickname}
               />
@@ -228,9 +307,11 @@ export function PlantDetailEditor({
                     className="detail-watering-input"
                     max={45}
                     min={1}
-                    onChange={(e) =>
-                      setWateringIntervalDays(Math.max(1, Math.min(45, Number(e.target.value))))
-                    }
+                    onChange={(e) => {
+                      const nextInterval = Math.max(1, Math.min(45, Number(e.target.value)));
+                      setWateringIntervalDays(nextInterval);
+                      scheduleAutosave({ nickname, wateringIntervalDays: nextInterval });
+                    }}
                     type="number"
                     value={wateringIntervalDays}
                   />
@@ -264,6 +345,22 @@ export function PlantDetailEditor({
           <div className="inline-actions detail-save-row">
             {imageName ? <p className="muted detail-note">{imageName}</p> : null}
             {error ? <p className="field-error">{error}</p> : null}
+            {autosaveState !== "idle" ? (
+              <span
+                className={
+                  autosaveState === "error"
+                    ? "detail-autosave-state detail-autosave-state--error"
+                    : "detail-autosave-state"
+                }
+                role="status"
+              >
+                {autosaveState === "saving"
+                  ? "Saving…"
+                  : autosaveState === "saved"
+                    ? "Saved"
+                    : "Couldn't save — check your connection"}
+              </span>
+            ) : null}
             <button
               aria-label={isSaving ? "Saving…" : "Save changes"}
               className={buttonClassName({ variant: "primary", size: "icon" })}

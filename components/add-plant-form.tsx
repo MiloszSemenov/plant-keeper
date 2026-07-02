@@ -76,6 +76,7 @@ export function AddPlantForm({
   const [selectedSpeciesSuggestion, setSelectedSpeciesSuggestion] =
     useState<SpeciesSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastIdentifiedImage, setLastIdentifiedImage] = useState<string | null>(null);
   const [identifyPending, startIdentify] = useTransition();
   const [createPending, startCreate] = useTransition();
   const [searchPending, startSearch] = useTransition();
@@ -176,6 +177,7 @@ export function AddPlantForm({
     setImageName(null);
     setPhotoSuggestions([]);
     setSelectedPhotoSuggestion(null);
+    setLastIdentifiedImage(null);
     if (photoInputRef.current) {
       photoInputRef.current.value = "";
     }
@@ -208,6 +210,10 @@ export function AddPlantForm({
       return;
     }
 
+    if (image === lastIdentifiedImage) {
+      return;
+    }
+
     setError(null);
 
     startIdentify(async () => {
@@ -226,6 +232,7 @@ export function AddPlantForm({
         return;
       }
 
+      setLastIdentifiedImage(image);
       setPhotoSuggestions(payload.suggestions ?? []);
       setSelectedPhotoSuggestion(null);
       if (payload.suggestions?.[0]?.species) {
@@ -233,6 +240,8 @@ export function AddPlantForm({
         setSpeciesSource("photo");
         setSpeciesSuggestions([]);
         lastSearchQueryRef.current = "";
+      } else {
+        setError("We couldn't recognize this plant from the photo. Try a closer, well-lit photo, or search by name instead.");
       }
     });
   }
@@ -448,23 +457,33 @@ export function AddPlantForm({
             />
             <div className="add-plant-identify-btn">
               <Button
-                disabled={!image || identifyPending}
+                disabled={!image || identifyPending || image === lastIdentifiedImage}
                 icon="cameraFill"
                 onClick={identifyPlant}
                 type="button"
                 variant="subtle"
               >
-                {identifyPending ? "Identifying..." : "Identify from photo"}
+                {identifyPending
+                  ? "Identifying..."
+                  : image && image === lastIdentifiedImage
+                    ? "Photo identified"
+                    : "Identify from photo"}
               </Button>
               {!image ? (
                 <p className="add-plant-identify-hint">Upload a photo of your plant first</p>
+              ) : image === lastIdentifiedImage ? (
+                <p className="add-plant-identify-hint">Upload a different photo to identify again</p>
               ) : null}
             </div>
           </div>
 
           {searchPending || visibleSuggestions.length > 0 ? (
             <p className="muted add-plant-suggestions-label">
-              {searchPending ? "Searching..." : "Pick the closest match"}
+              {searchPending
+                ? "Searching..."
+                : visibleSuggestions.length === 1
+                  ? "We found a match"
+                  : "Pick the closest match"}
             </p>
           ) : null}
 

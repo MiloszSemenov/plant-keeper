@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { buttonClassName } from "@/components/ui/button";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
-import { cn, getInitials } from "@/lib/utils";
+import { cn, getInitials, pluralize } from "@/lib/utils";
 
 type VaultOption = {
   id: string;
@@ -100,7 +100,7 @@ export function AppShell({
                 <div>
                   <strong>{vault.name}</strong>
                   <span>
-                    {vault.plantCount} plants | {vault.memberCount} members
+                    {pluralize(vault.plantCount, "plant")} | {pluralize(vault.memberCount, "member")}
                   </span>
                 </div>
               </div>
@@ -172,7 +172,9 @@ export function AppShell({
                   </Link>
                 </div>
                 <p className="gardeners-copy">
-                  {currentVault.memberCount} people care for this space together.
+                  {currentVault.memberCount === 1
+                    ? "You care for this space."
+                    : `${currentVault.memberCount} people care for this space together.`}
                 </p>
               </section>
             ) : null}

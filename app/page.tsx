@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SignInButton } from "@/components/sign-in-button";
-import { buttonClassName } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { PlantCardBase } from "@/components/plant-card-base";
 
@@ -197,7 +196,7 @@ export default async function HomePage() {
       <main>
         <section className="landing-hero" id="product">
           <div className="landing-copy">
-            <p className="eyebrow">The digital arboretum</p>
+            <p className="eyebrow">Plant care, made simple</p>
             <h1>
               Care for your plants.<br />
               Keep growing.
@@ -262,10 +261,10 @@ export default async function HomePage() {
                   <p>Upcoming care</p>
                   <span>12 scheduled</span>
                 </div>
-                <button className="landing-water-pill" type="button">
+                <span aria-hidden="true" className="landing-water-pill">
                   <Icon name="water" />
                   Water all (12)
-                </button>
+                </span>
               </div>
 
               <div className="landing-plant-grid">
@@ -310,10 +309,13 @@ export default async function HomePage() {
               Group your plants into spaces that match your rooms and routines. Everyone sees
               the same calm view of what needs attention next.
             </p>
-            <Link className="landing-text-link" href="#product">
-              Explore collections
-              <span aria-hidden="true">-&gt;</span>
-            </Link>
+            <SignInButton
+              className="landing-text-link"
+              label="Start your collection →"
+              showGoogleMark={false}
+              size="text"
+              variant="ghost"
+            />
           </div>
 
           <div className="landing-showcase-art" aria-label="Collection preview">
@@ -359,27 +361,24 @@ export default async function HomePage() {
                 <ul>
                   {plan.features.map((feature) => (
                     <li key={feature}>
-                      <Icon name="save" />
+                      <Icon name="check" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Link
-                  className={buttonClassName({
-                    className: "landing-price-button",
-                    size: "lg",
-                    variant: plan.featured ? "primary" : "subtle"
-                  })}
-                  href="#"
-                >
-                  {plan.cta}
-                </Link>
+                <SignInButton
+                  className="landing-price-button"
+                  label={plan.cta}
+                  showGoogleMark={false}
+                  size="lg"
+                  variant={plan.featured ? "primary" : "subtle"}
+                />
               </article>
             ))}
           </div>
 
           <p className="landing-pricing-note">
-            <Icon name="save" />
+            <Icon name="check" />
             14-day free trial. Cancel anytime.
           </p>
         </section>
@@ -392,11 +391,15 @@ export default async function HomePage() {
           </span>
           <span>PlantKeeper</span>
         </Link>
-        <p>© 2026 PlantKeeper Inc. Cultivating digital serenity.</p>
+        <p>© 2026 PlantKeeper. Cultivating digital serenity.</p>
         <div>
-          <Link href="#">Privacy</Link>
-          <Link href="#">Terms</Link>
-          <Link href="#">Github</Link>
+          <a
+            href="https://github.com/MiloszSemenov/plant-keeper"
+            rel="noreferrer"
+            target="_blank"
+          >
+            GitHub
+          </a>
         </div>
       </footer>
     </div>

@@ -905,6 +905,7 @@ Requirements:
 - Use species-specific indoor care guidance.
 - Avoid generic defaults.
 - watering_interval_days must be a realistic average in whole days.
+- Do not default to 7. Only answer 7 when that species genuinely averages weekly watering; otherwise pick the specific value that fits it best (e.g. 3, 5, 6, 9, 12).
 - If the plant is tropical foliage, prefer roughly 4-8 days unless the species is notably thirstier.
 - If the plant is a succulent, cactus, snake plant, or ZZ plant, use a meaningfully longer interval.
 - If the plant is an herb or very thirsty fern, use a meaningfully shorter interval.`,
@@ -1061,6 +1062,24 @@ export async function getOrCreatePlantSpecies(
       wikipediaImageUrl,
     },
   );
+
+  if (existing.normalizedLookupKey !== species.normalizedLookupKey) {
+    // The AI resolved the name to a different species row, so the incomplete
+    // row we looked up was not touched by the upsert above. Without this it
+    // keeps its placeholder watering interval forever and keeps surfacing in
+    // database suggestions as a stale near-duplicate.
+    await prisma.plantSpecies.update({
+      where: { id: existing.id },
+      data: {
+        wateringIntervalDays: aiCare.wateringIntervalDays,
+        fertilizerIntervalDays: aiCare.fertilizerIntervalDays,
+        lightRequirement: aiCare.lightRequirement,
+        soilType: aiCare.soilType,
+        petToxic: aiCare.petToxic,
+        careNotes: aiCare.careNotes,
+      },
+    });
+  }
 
   if (!isStoredSpeciesImageUrl(species.defaultImageUrl)) {
     triggerSpeciesImageDownload(
