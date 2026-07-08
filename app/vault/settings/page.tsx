@@ -266,7 +266,7 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
               <div className="overview-tiles">
                 <div className="overview-tile">
                   <span className="overview-tile__icon">
-                    <Icon name="leafFill" />
+                    <Icon name="leaf" />
                   </span>
                   <div className="overview-tile__body">
                     <strong>{plantCount}</strong>
@@ -275,7 +275,7 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
                 </div>
                 <div className="overview-tile">
                   <span className="overview-tile__icon">
-                    <Icon name="usersFill" />
+                    <Icon name="spaces" />
                   </span>
                   <div className="overview-tile__body">
                     <strong>{memberCount}</strong>
@@ -284,7 +284,7 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
                 </div>
                 <div className="overview-tile">
                   <span className="overview-tile__icon">
-                    <Icon name="notificationFill" />
+                    <Icon name="notifications" />
                   </span>
                   <div className="overview-tile__body">
                     <span className="overview-tile__label">Reminders</span>
@@ -293,7 +293,7 @@ export default async function VaultSettingsPage({ searchParams }: VaultSettingsP
                 </div>
                 <div className="overview-tile">
                   <span className="overview-tile__icon">
-                    <Icon name="calendarFill" />
+                    <Icon name="calendarDots" />
                   </span>
                   <div className="overview-tile__body">
                     <span className="overview-tile__label">Calendar</span>

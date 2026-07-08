@@ -41,7 +41,6 @@ export function InviteListItem({
     <div className="settings-invite-item settings-row">
       <div className="settings-invite-item__identity">
         <strong>{invite.email}</strong>
-        <span className={`status-pill status-${presentation.tone}`}>{presentation.label}</span>
       </div>
       <div className="muted settings-invite-item__meta">
         <p>Invited by {invite.createdBy.name ?? invite.createdBy.email}</p>
@@ -52,11 +51,14 @@ export function InviteListItem({
           </p>
         ) : null}
       </div>
-      <ManageInviteButton
-        inviteId={invite.id}
-        label={invite.status === "waiting" ? "Revoke invite" : "Remove invite"}
-        vaultId={vaultId}
-      />
+      <div className="settings-invite-item__actions">
+        <span className={`status-pill status-${presentation.tone}`}>{presentation.label}</span>
+        <ManageInviteButton
+          inviteId={invite.id}
+          label={invite.status === "waiting" ? "Revoke invite" : "Remove invite"}
+          vaultId={vaultId}
+        />
+      </div>
     </div>
   );
 }

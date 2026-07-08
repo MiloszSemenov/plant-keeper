@@ -22,7 +22,7 @@ model User {
   wateringEvents        PlantWateringEvent[]
   reminderEmails        ReminderEmail[]
   sessions              Session[]
-  user_usage            user_usage[]
+  usage                 UserUsage[]
   acceptedInvites       VaultInvite[]           @relation("VaultInviteAcceptor")
   createdInvites        VaultInvite[]           @relation("VaultInviteCreator")
   integrations          UserIntegration[]
@@ -257,18 +257,35 @@ model calendar_daily_events {
   @@unique([user_id, date])
 }
 
-model user_usage {
-  id                         String   @id @db.Uuid
-  user_id                    String   @db.Uuid
-  photo_identifications_used Int      @default(0)
-  period_start               DateTime
-  period_end                 DateTime
-  created_at                 DateTime @default(now())
-  updated_at                 DateTime
-  users                      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+model UserUsage {
+  id                       String   @id @default(uuid()) @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  photoIdentificationsUsed Int      @default(0) @map("photo_identifications_used")
+  periodStart              DateTime @map("period_start")
+  periodEnd                DateTime @map("period_end")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([user_id, period_start])
-  @@index([user_id, period_end])
+  @@unique([userId, periodStart])
+  @@index([userId, periodEnd])
+  @@map("user_usage")
+}
+
+model DailyUsage {
+  date                     DateTime @id @db.Date
+  photoIdentificationsUsed Int      @default(0) @map("photo_identifications_used")
+
+  @@map("daily_usage")
+}
+
+model PlantIdentificationCache {
+  id          String   @id @default(uuid()) @db.Uuid
+  imageHash   String   @unique @map("image_hash")
+  suggestions Json
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("plant_identification_cache")
 }
 
 enum VaultRole {

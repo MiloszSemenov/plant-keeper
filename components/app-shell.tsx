@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { PlantSearch } from "@/components/plant-search";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Avatar } from "@/components/ui/avatar";
 import { buttonClassName } from "@/components/ui/button";
 import { Icon, type IconName } from "@/components/ui/icon";
-import { Input } from "@/components/ui/input";
 import { cn, getInitials, pluralize } from "@/lib/utils";
 
 type VaultOption = {
@@ -190,14 +190,7 @@ export function AppShell({
                   {description ? <p>{description}</p> : null}
                 </div>
               ) : null}
-              <Input
-                aria-label="Search collection"
-                className="topbar-search__field"
-                containerClassName="topbar-search"
-                placeholder="Search collection..."
-                type="search"
-                icon="search"
-              />
+              <PlantSearch />
             </div>
 
             <div className="topbar-actions">

@@ -3,10 +3,12 @@ import {
   copyFile,
   mkdir,
   readdir,
+  readFile,
   unlink,
   writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
+import { put } from '@vercel/blob';
 import { type Prisma } from '@prisma/client';
 import { prisma } from '@/db/client';
 import { extensionFromMime } from '@/lib/base64';
@@ -16,9 +18,14 @@ import {
   isSupportedPlantImageMimeType,
   MAX_PLANT_IMAGE_BYTES,
 } from '@/lib/image-upload';
+import { MAX_PLANTS_PER_VAULT } from '@/lib/plan-limits';
 import { normalizePlantLookupKey } from '@/lib/plants';
 import { addDays, endOfLocalDay, startOfLocalDay } from '@/lib/time';
-import { savePlantImage, saveRemotePlantImage } from '@/services/storage';
+import {
+  isBlobStorageConfigured,
+  savePlantImage,
+  saveRemotePlantImage,
+} from '@/services/storage';
 import {
   canManagePlants,
   ensureVaultEditor,
@@ -126,8 +133,8 @@ function getDisplayPlantImageUrl(plant: {
 }) {
   return resolvePlantImage({
     context: 'plant',
-    plantImageUrl: isLocalPublicImageUrl(plant.imageUrl) ? plant.imageUrl : null,
-    speciesDefaultImageUrl: isLocalPublicImageUrl(plant.species.defaultImageUrl)
+    plantImageUrl: isOwnedImageUrl(plant.imageUrl) ? plant.imageUrl : null,
+    speciesDefaultImageUrl: isOwnedImageUrl(plant.species.defaultImageUrl)
       ? plant.species.defaultImageUrl
       : null,
   });
@@ -137,10 +144,27 @@ function isLocalPublicImageUrl(imageUrl: string | null | undefined) {
   return typeof imageUrl === 'string' && imageUrl.startsWith('/');
 }
 
+function isBlobStorageImageUrl(imageUrl: string | null | undefined) {
+  if (typeof imageUrl !== 'string') {
+    return false;
+  }
+
+  try {
+    return new URL(imageUrl).hostname.endsWith('.public.blob.vercel-storage.com');
+  } catch {
+    return false;
+  }
+}
+
+function isOwnedImageUrl(imageUrl: string | null | undefined) {
+  return isLocalPublicImageUrl(imageUrl) || isBlobStorageImageUrl(imageUrl);
+}
+
 export function isStoredSpeciesImageUrl(imageUrl: string | null | undefined) {
   return (
-    typeof imageUrl === 'string' &&
-    (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('/species/'))
+    (typeof imageUrl === 'string' &&
+      (imageUrl.startsWith('/uploads/') || imageUrl.startsWith('/species/'))) ||
+    isBlobStorageImageUrl(imageUrl)
   );
 }
 
@@ -218,10 +242,22 @@ async function copySpeciesImageFromLocalPath(
   }
 
   await access(sourcePath);
+
+  const fileName = `${speciesId}.${extension}`;
+
+  if (isBlobStorageConfigured()) {
+    const buffer = await readFile(sourcePath);
+    const blob = await put(`species/${fileName}`, buffer, {
+      access: 'public',
+      allowOverwrite: true,
+    });
+
+    return blob.url;
+  }
+
   await mkdir(SPECIES_IMAGE_DIRECTORY, { recursive: true });
   await clearExistingSpeciesImages(speciesId);
 
-  const fileName = `${speciesId}.${extension}`;
   const destinationPath = path.join(SPECIES_IMAGE_DIRECTORY, fileName);
 
   await copyFile(sourcePath, destinationPath);
@@ -267,11 +303,27 @@ export async function downloadSpeciesImage(
   }
 
   const extension = normalizeImageExtension(extensionFromMime(contentType));
+  const fileName = `${speciesId}.${extension}`;
+
+  if (isBlobStorageConfigured()) {
+    const blob = await put(`species/${fileName}`, buffer, {
+      access: 'public',
+      contentType,
+      allowOverwrite: true,
+    });
+
+    console.info('[species] download_saved', {
+      speciesId,
+      imageUrl,
+      blobUrl: blob.url,
+    });
+
+    return blob.url;
+  }
 
   await mkdir(SPECIES_IMAGE_DIRECTORY, { recursive: true });
   await clearExistingSpeciesImages(speciesId);
 
-  const fileName = `${speciesId}.${extension}`;
   const outputPath = path.join(SPECIES_IMAGE_DIRECTORY, fileName);
 
   await writeFile(outputPath, buffer);
@@ -822,6 +874,19 @@ export async function createPlant({
   const plantNickname = nickname?.trim() || speciesRecord.scientificName;
 
   return prisma.$transaction(async (tx) => {
+    const plantCount = await tx.plant.count({
+      where: {
+        vaultId
+      }
+    });
+
+    if (plantCount >= MAX_PLANTS_PER_VAULT) {
+      throw new ApiError(
+        422,
+        `This space has reached its limit of ${MAX_PLANTS_PER_VAULT} plants.`
+      );
+    }
+
     const plant = await tx.plant.create({
       data: {
         vaultId,
@@ -1178,4 +1243,70 @@ export async function markPlantsWatered(
       failed: [],
     },
   );
+}
+
+export async function searchUserPlants(userId: string, query: string) {
+  const trimmed = query.trim();
+
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  const plants = await prisma.plant.findMany({
+    where: {
+      vault: {
+        memberships: {
+          some: {
+            userId,
+          },
+        },
+      },
+      OR: [
+        { nickname: { contains: trimmed, mode: 'insensitive' } },
+        {
+          species: {
+            scientificName: { contains: trimmed, mode: 'insensitive' },
+          },
+        },
+        {
+          species: {
+            aliases: {
+              some: {
+                aliasName: { contains: trimmed, mode: 'insensitive' },
+              },
+            },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      nickname: true,
+      imageUrl: true,
+      species: {
+        select: {
+          scientificName: true,
+        },
+      },
+      vault: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      nickname: 'asc',
+    },
+    take: 8,
+  });
+
+  return plants.map((plant) => ({
+    id: plant.id,
+    nickname: plant.nickname,
+    imageUrl: plant.imageUrl,
+    speciesName: plant.species.scientificName,
+    vaultId: plant.vault.id,
+    vaultName: plant.vault.name,
+  }));
 }

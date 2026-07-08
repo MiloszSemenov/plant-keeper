@@ -27,3 +27,8 @@ export async function POST(request: NextRequest) {
     return toErrorResponse(error);
   }
 }
+
+// Vercel Cron invokes the path with GET and a `Authorization: Bearer CRON_SECRET` header
+export async function GET(request: NextRequest) {
+  return POST(request);
+}

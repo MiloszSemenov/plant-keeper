@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { buttonClassName } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 
 export function GenerateLinkAction({ vaultId }: { vaultId: string }) {
@@ -52,46 +51,42 @@ export function GenerateLinkAction({ vaultId }: { vaultId: string }) {
   }
 
   return (
-    <div className="invite-link-panel">
-      <div className="invite-link-row">
-        <div className="invite-link-box">
-          <span className="invite-link-box__label">Invite link</span>
-          <input
-            aria-label="Invite link"
-            className="invite-link-box__input"
-            onFocus={(event) => event.currentTarget.select()}
-            readOnly
-            value={url ?? "Generating link…"}
-          />
-        </div>
+    <div className="invite-link-field">
+      <div className="invite-link-field__text">
+        <span className="invite-link-field__label">Invite link</span>
+        <input
+          aria-label="Invite link"
+          className="invite-link-field__input"
+          onFocus={(event) => event.currentTarget.select()}
+          readOnly
+          value={url ?? "Generating link…"}
+        />
+      </div>
+      <div className="invite-link-field__actions">
         <button
           aria-label={copied ? "Copied" : "Copy invite link"}
-          className={buttonClassName({
-            variant: "primary",
-            className: `invite-copy-btn${copied ? " invite-copy-btn--copied" : ""}`
-          })}
+          className={`invite-link-field__action${copied ? " invite-link-field__action--copied" : ""}`}
           disabled={!url}
           onClick={() => void copy()}
+          title={copied ? "Copied!" : "Copy link"}
           type="button"
         >
-          <Icon className="ui-button__icon" name={copied ? "check" : "clipboard"} />
-          <span className="ui-button__label">{copied ? "Copied!" : "Copy invite link"}</span>
+          <Icon name={copied ? "check" : "clipboard"} />
+        </button>
+        <button
+          aria-label="Generate new link"
+          className="invite-link-field__action"
+          disabled={isGenerating}
+          onClick={() => void generate()}
+          title="Generate new link"
+          type="button"
+        >
+          <Icon
+            className={isGenerating ? "invite-link-field__spin" : undefined}
+            name="arrowClockwise"
+          />
         </button>
       </div>
-      <button
-        aria-label="Generate new link"
-        className="invite-regenerate"
-        disabled={isGenerating}
-        onClick={() => void generate()}
-        title="Generate new link"
-        type="button"
-      >
-        <Icon
-          className={isGenerating ? "invite-link-field__spin" : undefined}
-          name="arrowClockwise"
-        />
-        <span>Regenerate</span>
-      </button>
     </div>
   );
 }

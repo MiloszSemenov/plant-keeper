@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SignInButton } from "@/components/sign-in-button";
+import { buttonClassName } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { PlantCardBase } from "@/components/plant-card-base";
 
@@ -109,42 +110,46 @@ function selectPreviewPlants(pool: PlantPreviewItem[], count: number): PlantPrev
   return copy.slice(0, count);
 }
 
-const pricingPlans = [
+type PricingPlan = {
+  name: string;
+  price?: string;
+  interval?: string;
+  description: string;
+  features: string[];
+  cta?: string;
+  ribbon?: string;
+  featured?: boolean;
+  comingSoon?: boolean;
+};
+
+const pricingPlans: PricingPlan[] = [
   {
     name: "Free",
     price: "$0",
     interval: "/ month",
-    description: "A quiet start for your first shelf of plants.",
+    description: "Everything you need to keep your plants alive and thriving.",
     cta: "Get started",
-    features: ["Up to 10 plants", "1 space", "Basic care reminders", "Photo notes"]
-  },
-  {
-    name: "Gardener",
-    price: "$4.99",
-    interval: "/ month",
-    description: "Everything you need to keep a shared collection healthy.",
-    cta: "Start free trial",
+    ribbon: "Start here",
     featured: true,
     features: [
-      "Unlimited plants",
-      "Unlimited spaces",
-      "Smart care reminders",
-      "Plant history and stats",
-      "Priority support"
+      "Unlimited spaces, shared with anyone",
+      "Up to 50 plants per space",
+      "5 AI photo identifications a month",
+      "Watering schedules & email reminders",
+      "Google Calendar sync"
     ]
   },
   {
-    name: "Botanist",
-    price: "$9.99",
-    interval: "/ month",
-    description: "For plant lovers who want deeper control and insight.",
-    cta: "Start free trial",
+    name: "Pro",
+    description: "More AI and more automation for serious plant parents.",
+    ribbon: "Coming soon",
+    comingSoon: true,
     features: [
-      "Everything in Gardener",
-      "Advanced plant insights",
-      "Custom care schedules",
-      "Early feature access",
-      "VIP support"
+      "Everything in Free",
+      "More AI photo identifications",
+      "Unlimited plants per space",
+      "Fertilizer schedules & reminders",
+      "Seasonal watering adjustments"
     ]
   }
 ];
@@ -177,19 +182,22 @@ export default async function HomePage() {
         </nav>
 
         <div className="landing-nav-actions">
-          <SignInButton
-            className="landing-nav-signin"
-            label="Sign in"
-            showGoogleMark={false}
-            size="text"
-            variant="ghost"
-          />
-          <SignInButton
-            className="landing-nav-cta"
-            label="Get started"
-            showGoogleMark={false}
-            size="sm"
-          />
+          <Link
+            className={buttonClassName({
+              className: "landing-nav-signin",
+              size: "text",
+              variant: "ghost"
+            })}
+            href="/signin"
+          >
+            Sign in
+          </Link>
+          <Link
+            className={buttonClassName({ className: "landing-nav-cta", size: "sm" })}
+            href="/signin"
+          >
+            Get started
+          </Link>
         </div>
       </header>
 
@@ -202,19 +210,22 @@ export default async function HomePage() {
               Keep growing.
             </h1>
             <p className="landing-intro">
-              PlantKeeper helps you organize your collection, remember
-              watering schedules, and create the perfect environment
-              for every plant in your home.
+              Snap a photo to identify any plant, get a watering schedule
+              tuned to the species, and share the care with everyone at
+              home.
             </p>
 
             <div className="landing-actions">
-              <SignInButton
-                className="landing-primary-cta"
-                label="Start your plant journey"
-                showGoogleMark={false}
-                size="lg"
-                variant="primary"
-              />
+              <Link
+                className={buttonClassName({
+                  className: "landing-primary-cta",
+                  size: "lg",
+                  variant: "primary"
+                })}
+                href="/signin"
+              >
+                Start your plant journey
+              </Link>
               <div className="landing-or-divider" role="separator">
                 <span />
                 <span>or</span>
@@ -228,30 +239,20 @@ export default async function HomePage() {
               />
             </div>
 
-            <div className="landing-proof">
-              <div className="avatar-cluster" aria-hidden="true">
-                <span className="avatar-chip">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" className="avatar-chip__image" src="/plant-parents/woman1.jpg" />
-                </span>
-                <span className="avatar-chip">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" className="avatar-chip__image" src="/plant-parents/man.png" />
-                </span>
-                <span className="avatar-chip">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" className="avatar-chip__image" src="/plant-parents/woman2.png" />
-                </span>
-                <span className="avatar-chip">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt="" className="avatar-chip__image" src="/plant-parents/man2.jpg" />
-                </span>
-              </div>
-              <div className="landing-proof-text">
-                <span className="landing-stars" aria-hidden="true">★★★★★</span>
-                <p>Join 10,000+ plant parents</p>
-              </div>
-            </div>
+            <ul className="landing-hero-points">
+              <li>
+                <Icon name="cameraFill" />
+                AI photo identification
+              </li>
+              <li>
+                <Icon name="water" />
+                Smart watering schedules
+              </li>
+              <li>
+                <Icon name="usersFill" />
+                Shared plant spaces
+              </li>
+            </ul>
           </div>
 
           <div className="landing-preview-wrap" aria-label="PlantKeeper product preview">
@@ -339,8 +340,8 @@ export default async function HomePage() {
         <section className="landing-pricing" id="pricing">
           <div className="landing-section-heading">
             <p className="eyebrow">Pricing</p>
-            <h2>Choose the plan that grows with you.</h2>
-            <p>Simple, transparent pricing for every plant parent.</p>
+            <h2>Start free. Upgrade when your jungle grows.</h2>
+            <p>One simple free plan today — Pro is on the way.</p>
           </div>
 
           <div className="landing-pricing-grid">
@@ -349,13 +350,19 @@ export default async function HomePage() {
                 className={`landing-price-card${plan.featured ? " landing-price-card--featured" : ""}`}
                 key={plan.name}
               >
-                {plan.featured ? <p className="landing-price-ribbon">Most popular</p> : null}
+                {plan.ribbon ? <p className="landing-price-ribbon">{plan.ribbon}</p> : null}
                 <div className="landing-price-copy">
                   <h3>{plan.name}</h3>
-                  <p className="landing-price">
-                    <strong>{plan.price}</strong>
-                    <span>{plan.interval}</span>
-                  </p>
+                  {plan.price ? (
+                    <p className="landing-price">
+                      <strong>{plan.price}</strong>
+                      <span>{plan.interval}</span>
+                    </p>
+                  ) : (
+                    <p className="landing-price">
+                      <strong>TBA</strong>
+                    </p>
+                  )}
                   <p>{plan.description}</p>
                 </div>
                 <ul>
@@ -366,20 +373,37 @@ export default async function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <SignInButton
-                  className="landing-price-button"
-                  label={plan.cta}
-                  showGoogleMark={false}
-                  size="lg"
-                  variant={plan.featured ? "primary" : "subtle"}
-                />
+                {plan.comingSoon ? (
+                  <button
+                    className={buttonClassName({
+                      className: "landing-price-button",
+                      size: "lg",
+                      variant: "subtle"
+                    })}
+                    disabled
+                    type="button"
+                  >
+                    Coming soon
+                  </button>
+                ) : (
+                  <Link
+                    className={buttonClassName({
+                      className: "landing-price-button",
+                      size: "lg",
+                      variant: "primary"
+                    })}
+                    href="/signin"
+                  >
+                    {plan.cta}
+                  </Link>
+                )}
               </article>
             ))}
           </div>
 
           <p className="landing-pricing-note">
             <Icon name="check" />
-            14-day free trial. Cancel anytime.
+            Free means free — no credit card, no trial clock.
           </p>
         </section>
       </main>
@@ -391,7 +415,7 @@ export default async function HomePage() {
           </span>
           <span>PlantKeeper</span>
         </Link>
-        <p>© 2026 PlantKeeper. Cultivating digital serenity.</p>
+        <p>© 2026 PlantKeeper. Grown with care.</p>
         <div>
           <a
             href="https://github.com/MiloszSemenov/plant-keeper"

@@ -127,6 +127,20 @@ Open Plant Keeper to mark them as watered.`
   });
 }
 
+export async function sendMagicLinkEmail({ to, url }: { to: string; url: string }) {
+  return sendEmail({
+    to,
+    subject: "Your Plant Keeper sign-in link",
+    html: `<p>Hi,</p><p>Click the link below to sign in to Plant Keeper:</p><p><a href="${url}">Sign in to Plant Keeper</a></p><p>This link expires in 1 hour. If you didn't request it, you can safely ignore this email.</p>`,
+    text: `Hi,
+
+Use this link to sign in to Plant Keeper:
+${url}
+
+This link expires in 1 hour. If you didn't request it, you can safely ignore this email.`
+  });
+}
+
 export async function sendVaultInviteEmail({
   to,
   vaultName,

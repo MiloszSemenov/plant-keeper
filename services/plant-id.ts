@@ -133,7 +133,7 @@ export async function identifyPlantFromImage(image: string): Promise<PlantSugges
   const payload = await response.json();
   const suggestions = payload.suggestions ?? payload.result?.classification?.suggestions ?? [];
 
-  return suggestions
+  const identified: PlantSuggestion[] = suggestions
     .map((suggestion: Record<string, unknown>) => mapSuggestion(suggestion))
     .filter((suggestion: PlantSuggestion) => suggestion.species.length > 0)
     .sort(
@@ -141,6 +141,59 @@ export async function identifyPlantFromImage(image: string): Promise<PlantSugges
         (right.confidence ?? 0) - (left.confidence ?? 0)
     )
     .slice(0, 3);
+
+  if (identified.length === 0 || identified.length >= 3) {
+    return identified;
+  }
+
+  const related = await getRelatedKbSuggestions(identified, 3 - identified.length);
+
+  return [...identified, ...related];
+}
+
+function normalizeSpeciesKey(species: string) {
+  return species.trim().toLowerCase();
+}
+
+async function getRelatedKbSuggestions(
+  identified: PlantSuggestion[],
+  count: number
+): Promise<PlantSuggestion[]> {
+  const genus = identified[0].species.split(/\s+/)[0];
+
+  if (!genus || genus.length < 3) {
+    return [];
+  }
+
+  const knownKeys = new Set(
+    identified.map((suggestion) => normalizeSpeciesKey(suggestion.species))
+  );
+
+  try {
+    // small margin over `count` since the photo matches may appear again
+    const kbSuggestions = await searchPlantsByName(genus, count + 2);
+
+    return kbSuggestions
+      .filter((suggestion) => {
+        const key = normalizeSpeciesKey(suggestion.species);
+
+        if (knownKeys.has(key)) {
+          return false;
+        }
+
+        knownKeys.add(key);
+        return true;
+      })
+      .slice(0, count)
+      .map((suggestion) => ({
+        ...suggestion,
+        // no confidence: these are same-genus lookalikes, not photo matches
+        confidence: undefined
+      }));
+  } catch {
+    // the photo results are still valid without the extra lookalikes
+    return [];
+  }
 }
 
 async function getPlantDetails(accessToken: string) {
@@ -190,7 +243,10 @@ async function getPlantDetails(accessToken: string) {
   };
 }
 
-export async function searchPlantsByName(query: string): Promise<PlantSuggestion[]> {
+export async function searchPlantsByName(
+  query: string,
+  limit = 6
+): Promise<PlantSuggestion[]> {
   const apiKey = requireEnv("PLANT_ID_API_KEY");
   const endpoint = new URL("https://plant.id/api/v3/kb/plants/name_search");
 
@@ -215,7 +271,7 @@ export async function searchPlantsByName(query: string): Promise<PlantSuggestion
           (item): item is { access_token?: string; name?: string } =>
             typeof item === "object" && item !== null
         )
-        .slice(0, 6)
+        .slice(0, limit)
     : [];
 
   const detailedSuggestions = await Promise.all(

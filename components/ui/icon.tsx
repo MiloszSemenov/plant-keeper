@@ -29,6 +29,7 @@ const iconPaths = {
   listDashesFill: "/icons/list-dashes-fill.svg",
   calendarFill: "/icons/calendar-dots-fill.svg",
   leafFill: "/icons/leaf-fill.svg",
+  leaf: "/icons/leaf.svg",
   clockCounterClockwise: "/icons/clock-counter-clockwise.svg",
   calendarPlus: "/icons/calendar-plus.svg",
   dotsThreeVertical: "/icons/dots-three-vertical.svg",

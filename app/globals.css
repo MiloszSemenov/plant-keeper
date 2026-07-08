@@ -3137,6 +3137,30 @@ input[type="search"]::-webkit-search-cancel-button {
   margin-top: 2rem;
 }
 
+.landing-hero-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pk-space-3) var(--pk-space-5);
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+}
+
+.landing-hero-points li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pk-space-2);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--pk-color-text-secondary);
+}
+
+.landing-hero-points .ui-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--pk-color-primary);
+}
+
 .landing-proof-text {
   display: flex;
   flex-direction: column;
@@ -3485,10 +3509,10 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .landing-pricing-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--pk-space-6);
   align-items: stretch;
-  width: min(980px, 100%);
+  width: min(760px, 100%);
   margin: 0 auto;
 }
 
@@ -3679,7 +3703,7 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .settings-card__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--pk-space-4);
 }
@@ -4136,14 +4160,20 @@ input[type="search"]::-webkit-search-cancel-button {
 .member-role-col {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   margin-left: auto;
+  width: 5.5rem;
 }
 
+/* Fixed-width actions column reserves space for the kebab even when a row has
+   none (e.g. the owner), so every role pill lines up in the same column. */
 .member-actions-col {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: var(--pk-space-2);
+  width: 2rem;
+  flex-shrink: 0;
 }
 
 /* Role badge — color-coded per role (owner green / editor blue / member amber) */
@@ -4227,9 +4257,14 @@ input[type="search"]::-webkit-search-cancel-button {
   border-bottom: none;
 }
 
-.settings-invite-item > .ui-button {
+/* Right cluster: status pill sits next to the trash button, vertically centered */
+.settings-invite-item__actions {
   grid-area: actions;
   align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--pk-space-3);
 }
 
 .settings-invite-item__identity {
@@ -4514,32 +4549,57 @@ dialog.invites-dialog::backdrop {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
-/* Invite link field — read-only URL with regenerate + copy actions */
+/* Invite link field — labeled read-only URL with in-field copy + regenerate icons */
 
 .invite-link-field {
   display: flex;
   align-items: center;
-  gap: var(--pk-space-1);
+  gap: var(--pk-space-2);
   width: 100%;
   background: var(--pk-color-surface-section);
-  border: 1px solid var(--pk-color-border);
+  border: 1px solid color-mix(in srgb, var(--pk-color-border) 60%, transparent);
   border-radius: var(--pk-radius-md);
-  padding: var(--pk-space-1) var(--pk-space-2) var(--pk-space-1) var(--pk-space-4);
+  padding: var(--pk-space-2) var(--pk-space-2) var(--pk-space-2) var(--pk-space-4);
+}
+
+.invite-link-field__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.invite-link-field__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pk-color-text-muted);
 }
 
 .invite-link-field__input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   border: none;
   background: transparent;
-  color: var(--pk-color-text-secondary);
+  color: var(--pk-color-text-muted);
   font-family: var(--pk-font-body);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .invite-link-field__input:focus {
   outline: none;
+}
+
+.invite-link-field__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-1);
+  flex-shrink: 0;
 }
 
 .invite-link-field__action {
@@ -4640,8 +4700,8 @@ dialog.invites-dialog::backdrop {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 6.25rem;
-  height: 6.25rem;
+  width: 8rem;
+  height: 8rem;
   border-radius: var(--pk-radius-pill);
   background: linear-gradient(
     150deg,
@@ -4652,8 +4712,8 @@ dialog.invites-dialog::backdrop {
 }
 
 .settings-space-card__avatar .ui-icon {
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 3.75rem;
+  height: 3.75rem;
   background: var(--pk-color-primary);
 }
 
@@ -4761,6 +4821,7 @@ dialog.invites-dialog::backdrop {
   display: inline-flex;
   align-items: center;
   gap: var(--pk-space-2);
+  line-height: 1;
   color: var(--pk-color-primary);
 }
 
@@ -4768,11 +4829,15 @@ dialog.invites-dialog::backdrop {
   width: 1.1rem;
   height: 1.1rem;
   background: var(--pk-color-primary);
+  flex-shrink: 0;
+  display: block;
 }
 
 .settings-space-status__item img {
   width: 1.05rem;
   height: 1.05rem;
+  flex-shrink: 0;
+  display: block;
 }
 
 .settings-space-status__sep {
@@ -4781,98 +4846,6 @@ dialog.invites-dialog::backdrop {
 
 .settings-space-card .space-settings-menu {
   align-self: flex-start;
-}
-
-/* Invite link panel — labeled field + green copy CTA + subtle regenerate */
-
-.invite-link-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--pk-space-2);
-}
-
-.invite-link-row {
-  display: flex;
-  align-items: stretch;
-  gap: var(--pk-space-3);
-}
-
-.invite-link-box {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  justify-content: center;
-  background: var(--pk-color-surface-section);
-  border: 1px solid color-mix(in srgb, var(--pk-color-border) 60%, transparent);
-  border-radius: var(--pk-radius-md);
-  padding: var(--pk-space-3) var(--pk-space-4);
-}
-
-.invite-link-box__label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--pk-color-text-muted);
-}
-
-.invite-link-box__input {
-  width: 100%;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  color: var(--pk-color-text-muted);
-  font-family: var(--pk-font-body);
-  font-size: 0.88rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.invite-link-box__input:focus {
-  outline: none;
-}
-
-.invite-copy-btn {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.invite-copy-btn--copied {
-  background: var(--pk-color-primary);
-}
-
-.invite-regenerate {
-  align-self: flex-end;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--pk-space-2);
-  background: none;
-  border: none;
-  padding: var(--pk-space-1) 0;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--pk-color-text-muted);
-  transition: color var(--pk-transition-base);
-}
-
-.invite-regenerate:hover:not(:disabled) {
-  color: var(--pk-color-text-primary);
-}
-
-.invite-regenerate:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.invite-regenerate .ui-icon {
-  width: 1.1rem;
-  height: 1.1rem;
 }
 
 /* Preferences list */
@@ -4931,9 +4904,9 @@ dialog.invites-dialog::backdrop {
 }
 
 .overview-tile__body strong {
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--pk-color-text-primary);
 }
 
@@ -5021,19 +4994,6 @@ dialog.invites-dialog::backdrop {
 
   .settings-aside {
     flex-direction: column;
-  }
-
-  .invite-link-row {
-    flex-direction: column;
-  }
-
-  .invite-link-box {
-    max-width: none;
-  }
-
-  .invite-copy-btn {
-    width: 100%;
-    justify-content: center;
   }
 
   .preference-row {
@@ -5388,8 +5348,13 @@ dialog.invites-dialog::backdrop {
     min-height: 3.7rem;
   }
 
-  .topbar-search {
+  .topbar-search,
+  .plant-search {
     width: 100%;
+  }
+
+  .detail-breadcrumb {
+    flex-wrap: wrap;
   }
 
   .topbar-actions {
@@ -5681,4 +5646,273 @@ dialog.invites-dialog::backdrop {
   margin: 0;
   font-size: 0.78rem;
   color: var(--pk-color-text-muted);
+}
+
+/* Sign-in page (reuses the invite-card shell) */
+
+.signin-methods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-4);
+  width: 100%;
+}
+
+.signin-methods .signin-google {
+  width: 100%;
+}
+
+.signin-email-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-3);
+}
+
+.signin-email-form .ui-button {
+  width: 100%;
+}
+
+.signin-error {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--pk-color-tone-danger);
+}
+
+.signin-sent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pk-space-2);
+  padding: var(--pk-space-4);
+  border-radius: var(--pk-radius-md);
+  background: var(--pk-color-surface-section);
+}
+
+.signin-sent__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--pk-color-text-primary);
+}
+
+.signin-sent__lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--pk-color-text-secondary);
+}
+
+.signin-back {
+  font-size: 0.88rem;
+  color: var(--pk-color-text-muted);
+}
+
+.signin-back:hover {
+  color: var(--pk-color-text-primary);
+}
+
+/* Admin page */
+
+.admin-shell {
+  max-width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: var(--pk-space-8) 0 var(--pk-space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-6);
+}
+
+.admin-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+}
+
+.admin-header h1 {
+  margin: 0 0 var(--pk-space-1);
+}
+
+.admin-header p {
+  margin: 0;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--pk-space-4);
+}
+
+.admin-stat {
+  padding: var(--pk-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pk-space-1);
+}
+
+.admin-stat__label {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pk-color-text-muted);
+}
+
+.admin-stat__value {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--pk-color-text-primary);
+}
+
+.admin-stat__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--pk-color-text-muted);
+}
+
+.admin-recent {
+  padding: var(--pk-space-6);
+}
+
+.admin-recent h2 {
+  margin: 0 0 var(--pk-space-4);
+  font-size: 1.05rem;
+}
+
+.admin-user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pk-space-4);
+  padding: var(--pk-space-3) 0;
+  border-bottom: 1px solid var(--pk-color-border);
+}
+
+.admin-user-row:last-child {
+  border-bottom: none;
+}
+
+.admin-user-row__name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--pk-color-text-primary);
+}
+
+.admin-user-row__email {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--pk-color-text-secondary);
+}
+
+.admin-user-row time {
+  font-size: 0.85rem;
+  color: var(--pk-color-text-muted);
+  white-space: nowrap;
+}
+
+/* Global plant search (topbar) */
+
+.plant-search {
+  position: relative;
+  width: min(100%, 280px);
+  flex-shrink: 0;
+}
+
+.plant-search .topbar-search {
+  width: 100%;
+}
+
+.plant-search__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: var(--pk-space-2);
+  background: var(--pk-color-surface-card);
+  border-radius: var(--pk-radius-md);
+  box-shadow: var(--pk-shadow-hover);
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.plant-search__status {
+  margin: 0;
+  padding: var(--pk-space-3);
+  font-size: 0.88rem;
+  color: var(--pk-color-text-muted);
+}
+
+.plant-search__result {
+  display: flex;
+  align-items: center;
+  gap: var(--pk-space-3);
+  padding: var(--pk-space-2) var(--pk-space-3);
+  border-radius: var(--pk-radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+
+.plant-search__result:hover,
+.plant-search__result:focus-visible {
+  background: var(--pk-color-surface-section);
+}
+
+.plant-search__thumb {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--pk-radius-sm);
+  background: var(--pk-color-surface-section);
+  color: var(--pk-color-primary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.plant-search__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plant-search__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.plant-search__text strong {
+  font-size: 0.92rem;
+  color: var(--pk-color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plant-search__text span {
+  font-size: 0.8rem;
+  color: var(--pk-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plant-search__vault {
+  font-size: 0.78rem;
+  color: var(--pk-color-text-muted);
+  background: var(--pk-color-surface-section);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--pk-radius-pill);
+  white-space: nowrap;
 }

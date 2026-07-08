@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { put } from "@vercel/blob";
 import { extensionFromMime, normalizeBase64Image } from "@/lib/base64";
 import {
   isSupportedPlantImageMimeType,
@@ -8,9 +9,24 @@ import {
 } from "@/lib/image-upload";
 import { ApiError } from "@/lib/http";
 
+export function isBlobStorageConfigured() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
 async function writePlantImageFile(buffer: Buffer, mime: string) {
   const extension = extensionFromMime(mime);
   const fileName = `${randomUUID()}.${extension}`;
+
+  // Vercel has no persistent filesystem — store uploads in Blob when configured
+  if (isBlobStorageConfigured()) {
+    const blob = await put(`uploads/${fileName}`, buffer, {
+      access: "public",
+      contentType: mime
+    });
+
+    return blob.url;
+  }
+
   const relativePath = `/uploads/${fileName}`;
   const outputDirectory = path.join(process.cwd(), "public", "uploads");
   const outputPath = path.join(outputDirectory, fileName);
@@ -54,19 +70,13 @@ export async function saveRemotePlantImage(imageUrl: string) {
     throw new ApiError(400, "Image must be smaller than 5 MB");
   }
 
-  const relativePath = await writePlantImageFile(buffer, contentType);
-  const outputPath = path.join(
-    process.cwd(),
-    "public",
-    ...relativePath.replace(/^\/+/, "").split("/"),
-  );
+  const storedUrl = await writePlantImageFile(buffer, contentType);
 
   console.info("[storage] remote_image_saved", {
     imageUrl,
     contentType,
-    outputPath,
-    relativePath,
+    storedUrl,
   });
 
-  return relativePath;
+  return storedUrl;
 }
