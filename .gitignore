@@ -6,7 +6,9 @@ node_modules
 coverage
 dist
 prisma/dev.db
-public
+# local dev image storage (Vercel Blob is used in prod) and orphaned/unused assets
+public/uploads
+public/plant-parents
 AGENTS.md
 CLAUDE.md
 .claude
