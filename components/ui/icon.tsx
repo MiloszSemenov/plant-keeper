@@ -45,7 +45,8 @@ const iconPaths = {
   googleCalendar: "/icons/google_calendar_icon.svg",
   arrowClockwise: "/icons/arrow-clockwise-fill.svg",
   linkSimple: "/icons/link-simple.svg",
-  clipboard: "/icons/clipboard.svg"
+  clipboard: "/icons/clipboard.svg",
+  menu: "/icons/menu.svg"
 } as const;
 
 export type IconName = keyof typeof iconPaths;

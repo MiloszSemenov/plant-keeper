@@ -4240,7 +4240,8 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .settings-invite-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* minmax(0, …) lets long emails shrink instead of pushing the actions out of the card */
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "identity actions"
     "meta actions";
@@ -4278,6 +4279,8 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .settings-invite-item__identity strong {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-invite-item .status-pill {
@@ -4979,7 +4982,16 @@ dialog.invites-dialog::backdrop {
 
 @media (max-width: 720px) {
   .settings-space-card {
+    position: relative;
     flex-wrap: wrap;
+    gap: var(--pk-space-4);
+  }
+
+  /* Kebab pinned top-right instead of wrapping to its own row */
+  .settings-space-card .space-settings-menu {
+    position: absolute;
+    top: var(--pk-space-3);
+    right: var(--pk-space-3);
   }
 
   .settings-space-card__avatar {
@@ -4992,8 +5004,27 @@ dialog.invites-dialog::backdrop {
     height: 2.4rem;
   }
 
+  .settings-space-card__body {
+    flex: 1 1 10rem;
+  }
+
+  .settings-space-card .settings-space-name {
+    font-size: 1.35rem;
+  }
+
+  .settings-space-status {
+    flex-wrap: wrap;
+    row-gap: var(--pk-space-1);
+  }
+
   .settings-aside {
     flex-direction: column;
+  }
+
+  /* In a column the 280px flex-basis from the ≤1080 row layout would become
+     a fixed HEIGHT (clipping Space overview, stretching Quick actions) */
+  .settings-aside > .settings-card {
+    flex: 0 0 auto;
   }
 
   .preference-row {
@@ -5015,13 +5046,53 @@ dialog.invites-dialog::backdrop {
     padding-right: 0;
   }
 
-  .settings-page .member-row,
-  .settings-member-header {
-    grid-template-columns: 1fr auto;
+  /* Card headers: action button drops below the copy instead of squeezing it */
+  .settings-card__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--pk-space-3);
   }
 
-  .member-actions-col {
-    display: none;
+  /* Member rows stay a single line: name/email shrink, role pill + kebab keep working */
+  .settings-page .member-row {
+    gap: var(--pk-space-3);
+  }
+
+  .settings-page .member-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .settings-page .member-info strong,
+  .settings-page .member-info .muted {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .member-role-col {
+    width: auto;
+  }
+
+  /* Long emails truncate with an ellipsis instead of wrapping mid-word */
+  .settings-invite-item__identity {
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .settings-invite-item__identity strong {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .settings-invite-item__meta {
+    flex-direction: column;
+    gap: 0.15rem;
   }
 
   .invite-member-panel {
@@ -5287,11 +5358,6 @@ dialog.invites-dialog::backdrop {
   .plant-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .sidebar {
-    position: static;
-    max-height: none;
-  }
 }
 
 @media (max-width: 1024px) {
@@ -5310,29 +5376,16 @@ dialog.invites-dialog::backdrop {
 }
 
 @media (max-width: 720px) {
-  .app-shell,
   .marketing-shell,
   .detail-shell {
-    width: min(calc(100% - 1rem), 1180px);
+    width: min(calc(100% - 1.5rem), 1180px);
   }
 
-  .topbar,
-  .topbar-copy,
-  .ui-section__header,
   .setting-row,
-  .member-row,
   .member-side,
   .detail-list div {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .dashboard-shell {
-    padding-inline: 0;
-  }
-
-  .topbar {
-    padding: var(--pk-space-4);
   }
 
   .add-plant-layout,
@@ -5348,33 +5401,12 @@ dialog.invites-dialog::backdrop {
     min-height: 3.7rem;
   }
 
-  .topbar-search,
-  .plant-search {
-    width: 100%;
-  }
-
   .detail-breadcrumb {
     flex-wrap: wrap;
   }
 
-  .topbar-actions {
-    justify-content: flex-start;
-  }
-
   .topbar-divider {
     display: none;
-  }
-
-  .plant-card-media {
-    min-height: 220px;
-  }
-
-  .plant-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .add-plant-suggestion__media {
-    min-height: 220px;
   }
 
   .add-plant-footer {
@@ -5383,37 +5415,6 @@ dialog.invites-dialog::backdrop {
 
   .add-plant-footer .ui-button {
     width: 100%;
-  }
-
-  /* Compact stacked sidebar: horizontal nav, tighter rhythm */
-  .sidebar {
-    position: static;
-    max-height: none;
-    padding: var(--pk-space-5) var(--pk-space-4);
-    border-radius: var(--pk-radius-lg);
-  }
-
-  .nav-links {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .nav-links .nav-link {
-    flex: 1 1 auto;
-    justify-content: center;
-  }
-
-  .sidebar-stack {
-    margin-top: var(--pk-space-5);
-  }
-
-  .sidebar-gardeners {
-    display: none;
-  }
-
-  /* A tall stacked topbar shouldn't stay pinned on small screens */
-  .topbar {
-    position: static;
   }
 
   /* Care profile: 3-across is too cramped on phones */
@@ -5915,4 +5916,316 @@ dialog.invites-dialog::backdrop {
   padding: 0.15rem 0.5rem;
   border-radius: var(--pk-radius-pill);
   white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Mobile shell — one coherent layout for 350–1080px.
+   Desktop keeps the persistent left sidebar; below 1080px the sidebar
+   becomes an off-canvas drawer behind a hamburger in a slim sticky
+   header, and on phones (≤720px) primary nav moves to a bottom tab bar.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.mobile-chrome,
+.mobile-tabbar,
+.shell-backdrop,
+.sidebar-signout-row {
+  display: none;
+}
+
+@media (max-width: 1080px) {
+  .app-shell {
+    width: 100%;
+  }
+
+  .shell-grid {
+    display: block;
+  }
+
+  /* ── Slim sticky header: brand + hamburger ── */
+  .mobile-chrome {
+    position: sticky;
+    top: 0;
+    z-index: 55;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pk-space-3);
+    padding: 0.6rem var(--pk-space-4);
+    background: var(--pk-color-bg-page);
+    border-bottom: 1px solid color-mix(in srgb, var(--pk-color-border) 55%, transparent);
+  }
+
+  .brand--mobile strong {
+    font-size: 1.35rem;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    border-radius: var(--pk-radius-pill);
+    background: var(--pk-color-surface-card);
+    box-shadow: var(--pk-shadow-card);
+    color: var(--pk-color-primary);
+  }
+
+  .mobile-menu-btn .ui-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  /* ── Sidebar becomes an off-canvas drawer ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 70;
+    width: min(320px, 86vw);
+    height: 100dvh;
+    max-height: none;
+    padding: var(--pk-space-6) var(--pk-space-5);
+    border-radius: 0;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition:
+      transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0.28s;
+  }
+
+  .sidebar--open {
+    transform: none;
+    visibility: visible;
+    box-shadow: 24px 0 60px rgb(from #1b1c18 r g b / 0.28);
+  }
+
+  .shell-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgb(from #1b1c18 r g b / 0.45);
+  }
+
+  .sidebar-signout-row {
+    display: block;
+    margin-top: var(--pk-space-4);
+    padding-top: var(--pk-space-5);
+    border-top: 1px solid color-mix(in srgb, var(--pk-color-border) 55%, transparent);
+  }
+
+  .sidebar-signout {
+    width: 100%;
+  }
+
+  .topbar-signout {
+    display: none;
+  }
+
+  /* ── Page header: stacked title, full-width search, actions row ── */
+  .topbar {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--pk-space-4);
+    margin-bottom: var(--pk-space-4);
+    padding: var(--pk-space-5) var(--pk-space-4) 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .topbar-copy {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--pk-space-3);
+  }
+
+  .topbar-title {
+    font-size: 1.75rem;
+  }
+
+  .topbar-search,
+  .plant-search {
+    width: 100%;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* Plant detail topbar is not part of the app shell — keep it a row */
+  .topbar.plant-topbar {
+    position: sticky;
+    flex-direction: row;
+    align-items: center;
+    padding: var(--pk-space-3) var(--pk-space-4);
+    background: var(--pk-color-bg-page);
+  }
+
+  .dashboard-shell {
+    padding: 0 var(--pk-space-4);
+    gap: var(--pk-space-8);
+  }
+
+  /* ── Plant cards: keep several per viewport ── */
+  .ui-section__body,
+  .dashboard-columns,
+  .plant-grid {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+
+  .plant-card-media {
+    height: 190px;
+    min-height: 190px;
+  }
+
+  .plant-card-body {
+    gap: 0.6rem;
+    padding: var(--pk-space-4);
+  }
+
+  .settings-page .member-info > div {
+    min-width: 0;
+  }
+}
+
+/* ── Phones ── */
+@media (max-width: 720px) {
+  /* Bottom tab bar: Dashboard / Add Plant / Settings */
+  .mobile-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: var(--pk-space-1);
+    padding: 0.3rem var(--pk-space-3) calc(0.3rem + env(safe-area-inset-bottom));
+    background: var(--pk-color-surface-card);
+    border-top: 1px solid color-mix(in srgb, var(--pk-color-border) 55%, transparent);
+  }
+
+  .mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.35rem 0 0.25rem;
+    border-radius: var(--pk-radius-md);
+    color: var(--pk-color-text-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .mobile-tab__icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .mobile-tab.active {
+    color: var(--pk-color-primary);
+  }
+
+  /* Reserve space so the tab bar never covers content */
+  .main-area {
+    padding-bottom: calc(4.6rem + env(safe-area-inset-bottom));
+  }
+
+  .topbar-title {
+    font-size: 1.55rem;
+  }
+
+  .ui-section__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--pk-space-3);
+  }
+
+  .ui-section__copy h2 {
+    font-size: 1.45rem;
+  }
+
+  .ui-section__action .ui-button {
+    width: 100%;
+  }
+
+  /* Two compact cards per row — several plants visible per screen */
+  .ui-section__body,
+  .dashboard-columns,
+  .plant-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--pk-space-3);
+  }
+
+  .watering-section-grid > :only-child,
+  .ui-section__body > .empty-state,
+  .ui-section__body > div:only-child {
+    grid-column: 1 / -1;
+  }
+
+  .plant-card-media {
+    height: 150px;
+    min-height: 150px;
+  }
+
+  .plant-card-body {
+    gap: 0.4rem;
+    padding: var(--pk-space-3);
+  }
+
+  .plant-card-body h3 {
+    font-size: 0.95rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .plant-card-body .text-sm {
+    font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .plant-card-caption {
+    font-size: 0.7rem;
+  }
+
+  .plant-card-status {
+    top: var(--pk-space-2);
+    left: var(--pk-space-2);
+  }
+
+  .plant-card-status .status-pill {
+    font-size: 0.6rem;
+    padding: 0.24rem 0.5rem;
+  }
+
+  /* Add plant: two compact suggestion cards per row */
+  .add-plant-suggestions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--pk-space-3);
+  }
+
+  .add-plant-suggestion__media {
+    min-height: 140px;
+    max-height: 160px;
+  }
+
+  /* Plant detail: tighter panels on phones */
+  .detail-care-panel {
+    padding: var(--pk-space-5);
+    gap: var(--pk-space-5);
+  }
+
+  .detail-media {
+    min-height: 0;
+  }
 }

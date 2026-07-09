@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { PlantSearch } from "@/components/plant-search";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Avatar } from "@/components/ui/avatar";
@@ -40,6 +42,7 @@ export function AppShell({
   sidebarContent?: ReactNode;
   children: ReactNode;
 }) {
+  const [navOpen, setNavOpen] = useState(false);
   const hrefForVault = (vaultId: string) => `${currentPath}?vaultId=${vaultId}`;
   const currentVault = vaults.find((vault) => vault.id === currentVaultId) ?? vaults[0];
   const myCollections = vaults.filter((vault) => vault.role === "owner");
@@ -74,6 +77,26 @@ export function AppShell({
       label: "Settings"
     }
   ];
+
+  useEffect(() => {
+    if (!navOpen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setNavOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [navOpen]);
 
   function renderVaultGroup(label: string, items: VaultOption[]) {
     if (items.length === 0) {
@@ -115,8 +138,31 @@ export function AppShell({
 
   return (
     <div className="app-shell">
+      <header className="mobile-chrome">
+        <Link className="brand brand--mobile" href="/dashboard">
+          <strong>Plant Keeper</strong>
+        </Link>
+        <button
+          aria-expanded={navOpen}
+          aria-label={navOpen ? "Close menu" : "Open menu"}
+          className="mobile-menu-btn"
+          onClick={() => setNavOpen((open) => !open)}
+          type="button"
+        >
+          <Icon name={navOpen ? "close" : "menu"} />
+        </button>
+      </header>
+
       <div className="shell-grid">
-        <aside className="sidebar panel">
+        <aside
+          className={cn("sidebar panel", navOpen && "sidebar--open")}
+          onClickCapture={(event) => {
+            // any link tap inside the drawer should close it (vault switch keeps the page mounted)
+            if ((event.target as HTMLElement).closest("a")) {
+              setNavOpen(false);
+            }
+          }}
+        >
           <div className="sidebar-header">
             <Link className="brand brand--sidebar" href="/dashboard">
               <span>
@@ -178,8 +224,20 @@ export function AppShell({
                 </p>
               </section>
             ) : null}
+
+            <div className="sidebar-section sidebar-signout-row">
+              <SignOutButton className="sidebar-signout" />
+            </div>
           </div>
         </aside>
+
+        {navOpen ? (
+          <div
+            aria-hidden="true"
+            className="shell-backdrop"
+            onClick={() => setNavOpen(false)}
+          />
+        ) : null}
 
         <div className="main-area">
           <header className="topbar">
@@ -195,7 +253,7 @@ export function AppShell({
 
             <div className="topbar-actions">
               {actions}
-              <SignOutButton />
+              <SignOutButton className="topbar-signout" />
               {/* <span className="topbar-divider" />
               <button
                 aria-label="Notifications"
@@ -221,6 +279,19 @@ export function AppShell({
           <main className="dashboard-shell">{children}</main>
         </div>
       </div>
+
+      <nav className="mobile-tabbar" aria-label="Primary">
+        {navigationItems.map((item) => (
+          <Link
+            className={cn("mobile-tab", item.active && "active")}
+            href={item.href}
+            key={item.href}
+          >
+            <Icon className="mobile-tab__icon" name={item.icon} />
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }
