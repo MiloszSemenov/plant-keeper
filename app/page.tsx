@@ -359,8 +359,9 @@ export default async function HomePage() {
                       <span>{plan.interval}</span>
                     </p>
                   ) : (
-                    <p className="landing-price">
-                      <strong>TBA</strong>
+                    <p className="landing-price landing-price--soon">
+                      <strong>In development</strong>
+                      <span>pricing announced at launch</span>
                     </p>
                   )}
                   <p>{plan.description}</p>

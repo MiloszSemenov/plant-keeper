@@ -1761,6 +1761,7 @@ code {
   color: var(--pk-color-primary);
   font-size: 0.82rem;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .plant-card-link:hover,
@@ -2666,7 +2667,7 @@ input[type="search"]::-webkit-search-cancel-button {
 
 .add-plant-suggestions {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--pk-space-6);
 }
 
@@ -3551,8 +3552,19 @@ input[type="search"]::-webkit-search-cancel-button {
   text-transform: uppercase;
 }
 
-.landing-price-card--featured .landing-price-copy {
+.landing-price-ribbon + .landing-price-copy {
   padding-top: var(--pk-space-7);
+}
+
+.landing-price--soon {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+
+.landing-price--soon strong {
+  font-size: 1.5rem;
+  line-height: 2.5rem;
 }
 
 .landing-price-copy {
@@ -5161,50 +5173,116 @@ dialog.invites-dialog::backdrop {
   .landing-showcase,
   .landing-pricing,
   .landing-footer {
-    width: min(calc(100% - 1rem), 1180px);
+    width: min(calc(100% - 2.5rem), 1180px);
   }
 
-  .landing-topbar,
-  .landing-nav-actions,
-  .landing-dashboard-header,
-  .landing-pricing-note {
-    align-items: stretch;
-  }
-
+  /* Compact header: brand + actions on one row, section links tucked under */
   .landing-topbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    min-height: 0;
+    margin: 0 auto;
+    padding: var(--pk-space-4) 0 var(--pk-space-3);
+    row-gap: var(--pk-space-2);
   }
 
   .landing-brand {
-    font-size: 1.45rem;
+    font-size: 1.4rem;
+  }
+
+  .landing-nav-actions {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--pk-space-2);
+  }
+
+  .landing-nav-actions .ui-button {
+    white-space: nowrap;
+  }
+
+  /* Ultra-narrow phones: brand + a single CTA is all that fits on one row */
+  @media (max-width: 400px) {
+    .landing-nav-signin.ui-button {
+      display: none;
+    }
+
+    .landing-brand {
+      font-size: 1.3rem;
+    }
+  }
+
+  .landing-nav-cta.ui-button {
+    min-height: 2.4rem;
+    padding-inline: var(--pk-space-4);
   }
 
   .landing-nav-links {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
     gap: var(--pk-space-5);
     overflow-x: auto;
-    padding-bottom: var(--pk-space-2);
+    padding-bottom: var(--pk-space-1);
   }
 
-  .landing-nav-actions,
-  .landing-dashboard-header {
-    flex-direction: column;
+  .landing-nav-links a {
+    font-size: 0.88rem;
+    white-space: nowrap;
   }
 
-  .landing-nav-actions .ui-button,
+  .landing-hero,
+  .landing-showcase,
+  .landing-pricing {
+    padding: var(--pk-space-9) 0;
+  }
+
+  .landing-hero {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Centered hero */
+  .landing-copy {
+    align-items: center;
+    padding: var(--pk-space-4) 0 0;
+    text-align: center;
+  }
+
+  .landing-copy h1 {
+    max-width: none;
+    font-size: 2.7rem;
+    line-height: 1.04;
+    margin-bottom: 1.25rem;
+  }
+
+  .landing-intro {
+    margin-bottom: 1.75rem;
+  }
+
+  .landing-actions {
+    align-items: stretch;
+    width: min(22rem, 100%);
+    margin: 0 auto;
+  }
+
   .landing-primary-cta.ui-button,
   .landing-or-divider,
   .landing-google-cta.ui-button {
     width: 100%;
   }
 
-  .landing-hero,
-  .landing-showcase,
-  .landing-pricing {
-    padding: var(--pk-space-10) 0;
+  /* Hero points become pill chips */
+  .landing-hero-points {
+    justify-content: center;
+    gap: var(--pk-space-2);
+    margin-top: 1.75rem;
   }
 
-  .landing-copy h1 {
-    font-size: 2.85rem;
+  .landing-hero-points li {
+    padding: 0.45rem 0.85rem;
+    border: 1px solid rgb(from var(--pk-color-border) r g b / 0.5);
+    border-radius: var(--pk-radius-pill);
+    background: rgb(from var(--pk-color-surface-card) r g b / 0.85);
+    font-size: 0.8rem;
   }
 
   /* Compact product preview on phones: 2×2 card grid, no floating overlay */
@@ -5227,31 +5305,43 @@ dialog.invites-dialog::backdrop {
     min-height: 180px;
   }
 
+  .landing-dashboard-header {
+    flex-wrap: wrap;
+  }
+
   .landing-floating-card {
     display: none;
   }
 
+  /* Collections: contained image card instead of a full-bleed section background */
   .landing-showcase {
     grid-template-columns: 1fr;
+    background-image: none;
   }
 
   .landing-showcase-art {
-    min-height: 360px;
+    min-height: 320px;
     overflow: hidden;
-  }
-
-  .landing-showcase-art::before {
-    width: 16rem;
-    height: 14rem;
+    border: 1px solid rgb(from var(--pk-color-border) r g b / 0.4);
+    border-radius: var(--pk-radius-lg);
+    background-image: url("/backgrounds/background-pot.png");
+    background-repeat: no-repeat;
+    background-position: 50% 58%;
+    background-size: 220% auto;
   }
 
   .landing-collection-card {
-    right: var(--pk-space-4);
-    width: min(18rem, calc(100% - 2rem));
+    top: auto;
+    right: auto;
+    left: 50%;
+    bottom: var(--pk-space-4);
+    transform: translateX(-50%);
+    width: min(20rem, calc(100% - 2rem));
+    padding: var(--pk-space-5);
   }
 
   .landing-leaf-shadow {
-    right: -8rem;
+    display: none;
   }
 
   .landing-showcase-copy h2,
@@ -5262,6 +5352,24 @@ dialog.invites-dialog::backdrop {
   .landing-price-card {
     min-height: auto;
     padding: var(--pk-space-6);
+  }
+
+  .landing-pricing-note {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .landing-footer {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .landing-footer p {
+    text-align: center;
+  }
+
+  .landing-footer div {
+    justify-content: center;
   }
 }
 
@@ -5357,6 +5465,11 @@ dialog.invites-dialog::backdrop {
 
   .plant-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* minmax(0, …) so long unwrappable content (e.g. breadcrumb) can't widen the column */
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
